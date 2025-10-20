@@ -1,44 +1,26 @@
 <!doctype html>
 <html lang="es">
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Visor Medio Ambiente - Dashboard Geoespacial</title>
-		<!-- Leaflet CSS -->
-		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-sA+e2kP0p3xw2q3Q2b2gJb0m0Yb2K6H6v6b6yZ8+7+M=" crossorigin=""/>
-		<!-- Simple styles -->
-		<link rel="stylesheet" href="style.css" />
-	</head>
+  <head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Mapa - Visor</title>
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+	<link rel="stylesheet" href="style.css" />
+  </head>
 	<body>
 		<div id="app">
 			<aside id="sidebar">
-				<h1>Visor Medio Ambiente</h1>
-
+				<h2>Controles</h2>
 				<div class="control">
-					<label for="search">Buscar establecimiento</label>
-					<input id="search" placeholder="Nombre del establecimiento" />
-					<button id="btnSearch">Buscar</button>
+					<label for="search">Buscar:</label>
+					<input id="search" type="text" placeholder="Nombre..." />
+					<button id="btnSearch">Ir</button>
 				</div>
 
 				<div class="control">
-					<label for="sourceSelect">Fuente de datos</label>
-					<select id="sourceSelect">
-						<option value="geojson">GeoJSON (local)</option>
-						<option value="servicio">Servicio (WFS/API)</option>
-						<option value="bd">Base de datos (PostGIS)</option>
-					</select>
-				</div>
-
-				<div class="control">
-					<label>Tipo de geometría</label>
-					<div><input type="checkbox" id="chkPoint" checked /> <label for="chkPoint">Puntos</label></div>
-					<div><input type="checkbox" id="chkPolygon" checked /> <label for="chkPolygon">Polígonos</label></div>
-				</div>
-
-				<div class="control">
-					<label for="tipoIntervencion">Tipo de intervención</label>
+					<label for="tipoIntervencion">Tipo intervención:</label>
 					<select id="tipoIntervencion">
-						<option value="all">Todos</option>
+						<option value="all">Todas</option>
 						<option value="restauracion">Restauración</option>
 						<option value="limpieza">Limpieza</option>
 						<option value="plantacion">Plantación</option>
@@ -46,32 +28,28 @@
 				</div>
 
 				<div class="control">
-					<h3>Información</h3>
-					<div id="infoPanel">Seleccione un elemento en el mapa o use búsqueda.</div>
+					<label for="sourceSelect">Fuente de datos:</label>
+					<select id="sourceSelect">
+						<option value="local">GeoJSON local</option>
+						<option value="service">Servicio GeoJSON</option>
+					</select>
 				</div>
 
 				<div class="control">
-					<h3>Trabajo mensual</h3>
-					<canvas id="barChart" width="300" height="200"></canvas>
+					<label><input id="chkPoint" type="checkbox" checked /> Mostrar puntos</label><br/>
+					<label><input id="chkPolygon" type="checkbox" checked /> Mostrar polígonos</label>
 				</div>
 
-				<footer>
-					<small>Mapa base: OpenStreetMap • Construido con Leaflet</small>
-				</footer>
+				<div id="infoPanel" class="info">Seleccione un elemento para ver detalles.</div>
 			</aside>
 
-			<main id="mapContainer">
+			<div id="mapContainer">
 				<div id="map"></div>
-			</main>
+			</div>
 		</div>
 
-		<!-- Leaflet JS -->
-		<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-o9N1j8YpX2b2g2bXg2Pz8Jv8Z7y9x8kR5mY3Zk3yZ6M=" crossorigin=""></script>
-		<!-- Turf for spatial ops -->
-		<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
-		<!-- Chart.js -->
-		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-		<!-- Main JS -->
-		<script src="main.js"></script>
+			<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+			<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+			<script src="main2.js"></script>
 	</body>
 </html>
