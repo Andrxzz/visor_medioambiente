@@ -1,55 +1,144 @@
 <!doctype html>
 <html lang="es">
-  <head>
+<head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>Mapa - Visor</title>
+	<title>Visor Ambiental : Departamento de Medio AmbienteMunicipalidad de Puente Alto</title>
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 	<link rel="stylesheet" href="style.css" />
-  </head>
-	<body>
-		<div id="app">
+</head>
+<body>
+	<div id="app">
+		<!-- Header con logo -->
+		<header class="topbar">
+			<div class="logo">
+				<svg class="logo-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+					<path d="M2 17l10 5 10-5"></path>
+					<path d="M2 12l10 5 10-5"></path>
+				</svg>
+				<span>Visor Departamento de Medio Ambiente — Municipalidad de Puente Alto</span>
+			</div>
+			<div class="search-box">
+				<input id="search" type="text" placeholder="Buscar por nombre o categoría..." />
+				<button id="btnSearch">
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<circle cx="11" cy="11" r="8"></circle>
+						<path d="m21 21-4.35-4.35"></path>
+					</svg>
+				</button>
+			</div>
+		</header>
+
+		<!-- Contenedor principal -->
+		<div class="app-body">
+			<!-- Sidebar con capas -->
 			<aside id="sidebar">
-				<h2>Controles</h2>
-				<div class="control">
-					<label for="search">Buscar:</label>
-					<input id="search" type="text" placeholder="Nombre..." />
-					<button id="btnSearch">Ir</button>
+				<h3>Capas Geográficas</h3>
+
+
+				<details class="layer-category" open>
+					<summary>
+						<!-- Estructura territorial -->
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M3 12h18"></path>
+							<path d="M3 6h18"></path>
+							<path d="M3 18h18"></path>
+						</svg>
+						1. Estructura territorial
+					</summary>
+					<label><input type="checkbox" id="chk-sectores" checked /> Sectores</label>
+					<label><input type="checkbox" id="chk-villas" checked /> Villas</label>
+					<label><input type="checkbox" id="chk-unidades" checked /> Unidades Vecinales</label>
+					<label><input type="checkbox" id="chk-sedes" checked /> Sedes Sociales</label>
+				</details>
+
+				<details class="layer-category">
+					<summary>
+						<!-- Programa PEEE -->
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<circle cx="12" cy="12" r="10"></circle>
+							<path d="M8 12h8"></path>
+						</svg>
+						2. Programa PEEE
+					</summary>
+					<label><input type="checkbox" id="chk-peee-2024" checked /> 2024</label>
+					<label><input type="checkbox" id="chk-peee-2025" checked /> 2025</label>
+					<label><input type="checkbox" id="chk-peee-2024-2025" checked /> 2024 - 2025</label>
+				</details>
+
+				<details class="layer-category">
+					<summary>
+						<!-- Infraestructura -->
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M12 2l7 4v6c0 5-7 10-7 10s-7-5-7-10V6l7-4z"></path>
+						</svg>
+						3. Infraestructura
+					</summary>
+					<label><input type="checkbox" id="chk-areas-verdes" checked /> Áreas verdes</label>
+					<label><input type="checkbox" id="chk-puntos-limpios" checked /> Puntos Limpios</label>
+					<label><input type="checkbox" id="chk-puntos-verdes" checked /> Puntos Verdes</label>
+				</details>
+
+				<details class="layer-category">
+					<summary>
+						<!-- Intervenciones comunales (single layer) -->
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M12 2C8 6 4 8 4 12s4 6 8 10 8-4 8-8-4-6-8-12z"></path>
+						</svg>
+						4. Intervenciones comunales
+					</summary>
+					<label><input type="checkbox" id="chk-intervenciones-comunales" checked /> Mostrar Intervenciones comunales</label>
+				</details>
+
+				<div class="filters">
+					<h4>Filtros</h4>
+					<div class="filter-group">
+						<label for="tipoIntervencion">Tipo intervención:</label>
+						<select id="tipoIntervencion">
+							<option value="all">Todas</option>
+							<option value="jardines">Jardines</option>
+							<option value="huertos">Huertos</option>
+							<option value="colegios">Colegios</option>
+						</select>
+					</div>
+					<div class="filter-group">
+						<label for="kitsSelect">Entrega de Kits:</label>
+						<select id="kitsSelect">
+							<option value="all">Todas</option>
+							<option value="2024">2024</option>
+							<option value="2025">2025</option>
+							<option value="2024_2025">2024 + 2025</option>
+						</select>
+					</div>
 				</div>
 
-				<div class="control">
-					<label for="tipoIntervencion">Tipo intervención:</label>
-					<select id="tipoIntervencion">
-						<option value="all">Todas</option>
-						<option value="restauracion">Restauración</option>
-						<option value="limpieza">Limpieza</option>
-						<option value="plantacion">Plantación</option>
-					</select>
+				<div id="infoPanel" class="info-panel">
+					<h4>Información</h4>
+					<p>Seleccione un elemento en el mapa para ver detalles.</p>
 				</div>
-
-				<div class="control">
-					<label for="sourceSelect">Fuente de datos:</label>
-					<select id="sourceSelect">
-						<option value="local">GeoJSON local</option>
-						<option value="service">Servicio GeoJSON</option>
-					</select>
-				</div>
-
-				<div class="control">
-					<label><input id="chkPoint" type="checkbox" checked /> Mostrar puntos</label><br/>
-					<label><input id="chkPolygon" type="checkbox" checked /> Mostrar polígonos</label>
-				</div>
-
-				<div id="infoPanel" class="info">Seleccione un elemento para ver detalles.</div>
 			</aside>
 
+			<!-- Mapa principal -->
 			<div id="mapContainer">
 				<div id="map"></div>
 			</div>
 		</div>
+	</div>
 
-			<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-			<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
-			<script src="main2.js"></script>
-	</body>
+	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+	<script>
+		// Cargar capa base antes de main2.js
+		window.comunaGeoJSON = null;
+		fetch('datos/puentealto.geojson')
+			.then(r => r.json())
+			.then(data => {
+				window.comunaGeoJSON = data;
+				console.log('✓ GeoJSON de comuna cargado');
+			})
+			.catch(e => console.error('Error cargando comuna:', e));
+	</script>
+	<script src="main2.js"></script>
+</body>
 </html>
