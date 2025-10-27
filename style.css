@@ -2,7 +2,9 @@
 :root {
 	--verde-principal: #2a9d8f;
 	--azul-municipal: #0b6fb8;
+	--azul-puente-alto: #0047AB;
 	--verde-claro: #52b788;
+	--verde-pastel: #d4edda;
 	--crema: #fbfbf8;
 	--blanco: #ffffff;
 	--gris-claro: #f0f7f2;
@@ -30,7 +32,7 @@ html, body {
 /* === Header / Topbar === */
 .topbar {
 	height: 70px;
-	background: linear-gradient(135deg, var(--blanco) 0%, var(--gris-claro) 100%);
+	background: linear-gradient(135deg, var(--verde-pastel) 0%, #e8f5e9 100%);
 	border-bottom: 1px solid var(--gris-borde);
 	box-shadow: var(--sombra-suave);
 	display: flex;
@@ -46,7 +48,14 @@ html, body {
 	gap: 12px;
 	font-size: 1.1rem;
 	font-weight: 600;
-	color: var(--azul-municipal);
+	color: var(--azul-puente-alto);
+}
+
+.logo-municipalidad {
+	height: 50px;
+	width: auto;
+	object-fit: contain;
+	margin-right: 8px;
 }
 
 .logo-icon {
@@ -103,7 +112,7 @@ html, body {
 /* === Sidebar === */
 #sidebar {
 	width: 340px;
-	background: var(--blanco);
+	background: var(--verde-pastel);
 	border-right: 1px solid var(--gris-borde);
 	box-shadow: 2px 0 12px rgba(0,0,0,0.04);
 	padding: 20px;
@@ -114,14 +123,14 @@ html, body {
 #sidebar h3 {
 	margin: 0 0 20px 0;
 	font-size: 1.15rem;
-	color: var(--azul-municipal);
+	color: var(--azul-puente-alto);
 	font-weight: 600;
 }
 
 #sidebar h4 {
 	margin: 16px 0 10px 0;
 	font-size: 0.95rem;
-	color: #4a5568;
+	color: var(--azul-puente-alto);
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.5px;
@@ -145,7 +154,7 @@ html, body {
 	padding: 14px 16px;
 	cursor: pointer;
 	font-weight: 600;
-	color: var(--azul-municipal);
+	color: var(--azul-puente-alto);
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -173,6 +182,7 @@ html, body {
 	padding: 10px 16px;
 	margin: 0;
 	font-size: 0.9rem;
+	color: var(--azul-puente-alto);
 	background: var(--blanco);
 	border-bottom: 1px solid var(--gris-borde);
 	transition: background 0.15s;
@@ -271,7 +281,7 @@ html, body {
 	position: absolute; 
 	inset: 0; 
 	width: 100%; 
-	height: 100%; 
+	height: 100%;
 }
 
 /* === Controles del mapa === */
@@ -284,6 +294,13 @@ html, body {
 	border-radius: 8px !important;
 	box-shadow: var(--sombra) !important;
 	transition: all 0.2s !important;
+}
+
+/* Asegurar que la escala y atribución estén sobre la barra de colores */
+.leaflet-control-scale,
+.leaflet-control-attribution {
+	z-index: 1000 !important;
+	margin-bottom: 18px !important;
 }
 
 .home-btn,
@@ -354,6 +371,9 @@ html, body {
 	.search-box input {
 		width: 200px;
 	}
+	.logo-municipalidad {
+		height: 45px;
+	}
 }
 
 @media (max-width: 640px) {
@@ -371,7 +391,26 @@ html, body {
 	.logo span {
 		display: none;
 	}
+	.logo-municipalidad {
+		height: 40px;
+	}
 	.search-box input {
 		width: 150px;
 	}
+}
+
+/* === Barra de colores horizontal === */
+.color-bar {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	height: 12px;
+	display: flex;
+	z-index: 400;
+}
+
+.color-segment {
+	flex: 1;
+	height: 100%;
 }

@@ -15,7 +15,10 @@ if (typeof L === 'undefined') {
     peee_2024_2025: [],
     areas_verdes: [],
     puntos_limpios: [],
-    puntos_verdes: []
+    puntos_verdes: [],
+    sectores: [],
+    unidades_vecinales: [],
+    villas: []
   };
 
   // Layer colors / styles for new groups
@@ -26,7 +29,20 @@ if (typeof L === 'undefined') {
     peee_2024_2025: { fillColor: '#f46d43', color: '#9b3f28' },
     areas_verdes: { fillColor: '#1b7837', color: '#114c24' },
     puntos_limpios: { fillColor: '#66c2a5', color: '#3f8f74' },
-    puntos_verdes: { fillColor: '#a6d96a', color: '#6d9a3f' }
+    puntos_verdes: { fillColor: '#a6d96a', color: '#6d9a3f' },
+    sectores: { fillColor: '#3498db', color: '#2980b9', weight: 2, fillOpacity: 0.3 },
+    unidades_vecinales: {
+      fillColor: '#9b59b6',
+      color: '#8e44ad',
+      weight: 2,
+      fillOpacity: 0.3
+    },
+    villas: {
+      fillColor: '#e67e22',
+      color: '#d35400',
+      weight: 2,
+      fillOpacity: 0.25
+    },
   };
 
 
@@ -167,6 +183,114 @@ if (typeof L === 'undefined') {
     };
     cargarComuna();
 
+    // Cargar capa de Sectores
+    const cargarSectores = () => {
+      fetch('datos/sectores.geojson')
+        .then(response => response.json())
+        .then(data => {
+          const style = layerStyles.sectores;
+          layers['sectores'] = L.geoJSON(data, {
+            style: {
+              fillColor: style.fillColor,
+              color: style.color,
+              weight: style.weight,
+              fillOpacity: style.fillOpacity
+            },
+            onEachFeature: (feature, layer) => {
+              const props = feature.properties || {};
+              const sectorName = props.Name || 'Sector desconocido';
+              layer.bindPopup(`<b>${sectorName}</b><br>${props.PopupInfo || ''}`);
+              layer.on('click', () => {
+                showInfo({
+                  name: sectorName,
+                  tipo: 'Sector',
+                  id: props.Name,
+                  ...props
+                });
+              });
+            }
+          });
+          
+          // Agregar la capa al mapa por defecto
+          layers['sectores'].addTo(map);
+          console.log('✓ Capa de sectores agregada al mapa');
+        })
+        .catch(err => console.error('Error al cargar sectores:', err));
+    };
+    cargarSectores();
+
+    // Cargar capa de Unidades Vecinales
+    const cargarUnidadesVecinales = () => {
+      fetch('datos/unidadesvecinales.geojson')
+        .then(response => response.json())
+        .then(data => {
+          const style = layerStyles.unidades_vecinales;
+          layers['unidades_vecinales'] = L.geoJSON(data, {
+            style: {
+              fillColor: style.fillColor,
+              color: style.color,
+              weight: style.weight,
+              fillOpacity: style.fillOpacity
+            },
+            onEachFeature: (feature, layer) => {
+              const props = feature.properties || {};
+              const uvName = props.Name || 'Unidad Vecinal desconocida';
+              layer.bindPopup(`<b>${uvName}</b>`);
+              layer.on('click', () => {
+                showInfo({
+                  name: uvName,
+                  tipo: 'Unidad Vecinal',
+                  id: props.id || props.Name,
+                  ...props
+                });
+              });
+            }
+          });
+          
+          // Agregar la capa al mapa por defecto
+          layers['unidades_vecinales'].addTo(map);
+          console.log('✓ Capa de unidades vecinales agregada al mapa');
+        })
+        .catch(err => console.error('Error al cargar unidades vecinales:', err));
+    };
+    cargarUnidadesVecinales();
+
+    // Cargar capa de Villas
+    const cargarVillas = () => {
+      fetch('datos/villas.geojson')
+        .then(response => response.json())
+        .then(data => {
+          const style = layerStyles.villas;
+          layers['villas'] = L.geoJSON(data, {
+            style: {
+              fillColor: style.fillColor,
+              color: style.color,
+              weight: style.weight,
+              fillOpacity: style.fillOpacity
+            },
+            onEachFeature: (feature, layer) => {
+              const props = feature.properties || {};
+              const villaName = props.Name || 'Villa desconocida';
+              layer.bindPopup(`<b>${villaName}</b>`);
+              layer.on('click', () => {
+                showInfo({
+                  name: villaName,
+                  tipo: 'Villa',
+                  id: props.id || props.Name,
+                  ...props
+                });
+              });
+            }
+          });
+          
+          // Agregar la capa al mapa por defecto
+          layers['villas'].addTo(map);
+          console.log('✓ Capa de villas agregada al mapa');
+        })
+        .catch(err => console.error('Error al cargar villas:', err));
+    };
+    cargarVillas();
+
     // Create all layers
     Object.keys(sampleData).forEach(layerName => {
       const style = layerStyles[layerName] || { fillColor: '#888', color: '#555' };
@@ -284,9 +408,9 @@ if (typeof L === 'undefined') {
     
     // Layer checkboxes: new sidebar IDs -> layer keys
     const layerCheckboxes = {
-      'chk-sectores': 'intervenciones_comunales',
-      'chk-villas': 'intervenciones_comunales',
-      'chk-unidades': 'intervenciones_comunales',
+      'chk-sectores': 'sectores',
+      'chk-unidades': 'unidades_vecinales',
+      'chk-villas': 'villas',
       'chk-sedes': 'intervenciones_comunales',
       'chk-peee-2024': 'peee_2024',
       'chk-peee-2025': 'peee_2025',
@@ -302,10 +426,55 @@ if (typeof L === 'undefined') {
       const checkbox = document.getElementById(checkboxId);
       if (!checkbox) return;
 
+      // Special handling for sectores checkbox (independent layer)
+      if (checkboxId === 'chk-sectores') {
+        checkbox.checked = true; // Default checked
+        checkbox.addEventListener('change', (ev) => {
+          if (layers['sectores']) {
+            if (ev.target.checked) {
+              layers['sectores'].addTo(map);
+            } else {
+              map.removeLayer(layers['sectores']);
+            }
+          }
+        });
+        return;
+      }
+
+      // Special handling for villas checkbox (independent layer)
+      if (checkboxId === 'chk-villas') {
+        checkbox.checked = true; // Default checked
+        checkbox.addEventListener('change', (ev) => {
+          if (layers['villas']) {
+            if (ev.target.checked) {
+              layers['villas'].addTo(map);
+            } else {
+              map.removeLayer(layers['villas']);
+            }
+          }
+        });
+        return;
+      }
+
+      // Special handling for unidades vecinales checkbox (independent layer)
+      if (checkboxId === 'chk-unidades') {
+        checkbox.checked = true; // Default checked
+        checkbox.addEventListener('change', (ev) => {
+          if (layers['unidades_vecinales']) {
+            if (ev.target.checked) {
+              layers['unidades_vecinales'].addTo(map);
+            } else {
+              map.removeLayer(layers['unidades_vecinales']);
+            }
+          }
+        });
+        return;
+      }
+
       // If this checkbox maps to the combined intervenciones layer but is a sub-item
-      // (sectores/villas/unidades/sedes), we keep them as visual-only and sync them
+      // (sedes), we keep them as visual-only and sync them
       // to the master checkbox.
-      const isSubItem = ['chk-sectores','chk-villas','chk-unidades','chk-sedes'].includes(checkboxId);
+      const isSubItem = ['chk-sedes'].includes(checkboxId);
 
       // Master checkbox for the combined layer
       if (checkboxId === 'chk-intervenciones-comunales') {
@@ -314,11 +483,11 @@ if (typeof L === 'undefined') {
         checkbox.addEventListener('change', (ev) => {
           if (ev.target.checked) {
             layers['intervenciones_comunales'].addTo(map);
-            // sync sub-items visually
-            ['chk-sectores','chk-villas','chk-unidades','chk-sedes'].forEach(id => { const e = document.getElementById(id); if (e) e.checked = true; });
+            // sync sub-items visually (only sedes now)
+            ['chk-sedes'].forEach(id => { const e = document.getElementById(id); if (e) e.checked = true; });
           } else {
             map.removeLayer(layers['intervenciones_comunales']);
-            ['chk-sectores','chk-villas','chk-unidades','chk-sedes'].forEach(id => { const e = document.getElementById(id); if (e) e.checked = false; });
+            ['chk-sedes'].forEach(id => { const e = document.getElementById(id); if (e) e.checked = false; });
           }
   });
   return;
