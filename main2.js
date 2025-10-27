@@ -13,12 +13,13 @@ if (typeof L === 'undefined') {
     peee_2024: [],
     peee_2025: [],
     peee_2024_2025: [],
-    areas_verdes: [],
     puntos_limpios: [],
-    puntos_verdes: [],
+    puntos_verdes_comunidad: [],
+    puntos_verdes_internos: [],
     sectores: [],
     unidades_vecinales: [],
-    villas: []
+    villas: [],
+    sedes_sociales: []
   };
 
   // Layer colors / styles for new groups
@@ -27,20 +28,20 @@ if (typeof L === 'undefined') {
     peee_2024: { fillColor: '#d73027', color: '#8b1b16' },
     peee_2025: { fillColor: '#fdae61', color: '#b56b36' },
     peee_2024_2025: { fillColor: '#f46d43', color: '#9b3f28' },
-    areas_verdes: { fillColor: '#1b7837', color: '#114c24' },
-    puntos_limpios: { fillColor: '#66c2a5', color: '#3f8f74' },
-    puntos_verdes: { fillColor: '#a6d96a', color: '#6d9a3f' },
-    sectores: { fillColor: '#3498db', color: '#2980b9', weight: 2, fillOpacity: 0.3 },
+    puntos_limpios: { fillColor: '#2563eb', color: '#1e40af' },
+    puntos_verdes_comunidad: { fillColor: '#10b981', color: '#059669' },
+    puntos_verdes_internos: { fillColor: '#f59e0b', color: '#d97706' },
+    sectores: { fillColor: '#3b82f6', color: '#2563eb', weight: 2.5, fillOpacity: 0.25 },
     unidades_vecinales: {
-      fillColor: '#9b59b6',
-      color: '#8e44ad',
-      weight: 2,
-      fillOpacity: 0.3
+      fillColor: '#a855f7',
+      color: '#9333ea',
+      weight: 2.5,
+      fillOpacity: 0.25
     },
     villas: {
-      fillColor: '#e67e22',
-      color: '#d35400',
-      weight: 2,
+      fillColor: '#10b981',
+      color: '#059669',
+      weight: 2.5,
       fillOpacity: 0.25
     },
   };
@@ -211,9 +212,12 @@ if (typeof L === 'undefined') {
             }
           });
           
-          // Agregar la capa al mapa por defecto
-          layers['sectores'].addTo(map);
-          console.log('✓ Capa de sectores agregada al mapa');
+          // Agregar la capa al mapa solo si el checkbox está marcado
+          const checkbox = document.getElementById('chk-sectores');
+          if (checkbox && checkbox.checked) {
+            layers['sectores'].addTo(map);
+          }
+          console.log('✓ Capa de sectores cargada');
         })
         .catch(err => console.error('Error al cargar sectores:', err));
     };
@@ -247,9 +251,12 @@ if (typeof L === 'undefined') {
             }
           });
           
-          // Agregar la capa al mapa por defecto
-          layers['unidades_vecinales'].addTo(map);
-          console.log('✓ Capa de unidades vecinales agregada al mapa');
+          // Agregar la capa al mapa solo si el checkbox está marcado
+          const checkbox = document.getElementById('chk-unidades');
+          if (checkbox && checkbox.checked) {
+            layers['unidades_vecinales'].addTo(map);
+          }
+          console.log('✓ Capa de unidades vecinales cargada');
         })
         .catch(err => console.error('Error al cargar unidades vecinales:', err));
     };
@@ -283,13 +290,243 @@ if (typeof L === 'undefined') {
             }
           });
           
-          // Agregar la capa al mapa por defecto
-          layers['villas'].addTo(map);
-          console.log('✓ Capa de villas agregada al mapa');
+          // Agregar la capa al mapa solo si el checkbox está marcado
+          const checkbox = document.getElementById('chk-villas');
+          if (checkbox && checkbox.checked) {
+            layers['villas'].addTo(map);
+          }
+          console.log('✓ Capa de villas cargada');
         })
         .catch(err => console.error('Error al cargar villas:', err));
     };
     cargarVillas();
+
+    // Cargar capa de Sedes Sociales
+    const cargarSedesSociales = () => {
+      // Crear ícono personalizado naranja con marco blanco
+      const sedeIcon = L.divIcon({
+        className: 'sede-social-icon',
+        html: `<div style="
+          width: 12px;
+          height: 12px;
+          background-color: #f97316;
+          border: 2px solid white;
+          border-radius: 50%;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        "></div>`,
+        iconSize: [12, 12],
+        iconAnchor: [6, 6],
+        popupAnchor: [0, -8]
+      });
+
+      fetch('datos/sedesociales.geojson')
+        .then(response => response.json())
+        .then(data => {
+          layers['sedes_sociales'] = L.geoJSON(data, {
+            pointToLayer: (feature, latlng) => {
+              return L.marker(latlng, { icon: sedeIcon });
+            },
+            onEachFeature: (feature, layer) => {
+              const props = feature.properties || {};
+              const sedeName = props.Name || 'Sede Social';
+              layer.bindPopup(`<b>${sedeName}</b><br>Sede Social`);
+              layer.on('click', () => {
+                showInfo({
+                  name: sedeName,
+                  tipo: 'Sede Social',
+                  ...props
+                });
+              });
+            }
+          });
+          
+          // Agregar la capa al mapa solo si el checkbox está marcado
+          const checkbox = document.getElementById('chk-sedes');
+          if (checkbox && checkbox.checked) {
+            layers['sedes_sociales'].addTo(map);
+          }
+          console.log('✓ Capa de sedes sociales cargada');
+        })
+        .catch(err => console.error('Error al cargar sedes sociales:', err));
+    };
+    cargarSedesSociales();
+
+    // Cargar Puntos Limpios
+    const cargarPuntosLimpios = () => {
+      const puntosLimpiosIcon = L.divIcon({
+        className: 'punto-limpio-icon',
+        html: `<div style="
+          width: 14px;
+          height: 14px;
+          background-color: #2563eb;
+          border: 2px solid white;
+          border-radius: 50%;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        "></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+        popupAnchor: [0, -9]
+      });
+
+      fetch('datos/puntoslimpios.geojson')
+        .then(response => response.json())
+        .then(data => {
+          // Filtrar solo Puntos Limpios (FolderPath: "Puntos Limpios/Puntos Limpios")
+          const puntosLimpiosFeatures = data.features.filter(f => 
+            f.properties.FolderPath === 'Puntos Limpios/Puntos Limpios'
+          );
+          
+          const filteredData = {
+            type: 'FeatureCollection',
+            features: puntosLimpiosFeatures
+          };
+
+          layers['puntos_limpios'] = L.geoJSON(filteredData, {
+            pointToLayer: (feature, latlng) => {
+              return L.marker(latlng, { icon: puntosLimpiosIcon });
+            },
+            onEachFeature: (feature, layer) => {
+              const props = feature.properties || {};
+              const puntoName = props.Name || 'Punto Limpio';
+              layer.bindPopup(`<b>${puntoName}</b><br>${props.PopupInfo || 'Punto Limpio'}`);
+              layer.on('click', () => {
+                showInfo({
+                  name: puntoName,
+                  tipo: 'Punto Limpio',
+                  ...props
+                });
+              });
+            }
+          });
+          
+          // Agregar la capa al mapa solo si el checkbox está marcado
+          const checkbox = document.getElementById('chk-puntos-limpios');
+          if (checkbox && checkbox.checked) {
+            layers['puntos_limpios'].addTo(map);
+          }
+          console.log('✓ Capa de puntos limpios cargada');
+        })
+        .catch(err => console.error('Error al cargar puntos limpios:', err));
+    };
+    cargarPuntosLimpios();
+
+    // Cargar Puntos Verdes hacia la comunidad
+    const cargarPuntosVerdesComunidad = () => {
+      const puntosVerdesComunidadIcon = L.divIcon({
+        className: 'punto-verde-comunidad-icon',
+        html: `<div style="
+          width: 14px;
+          height: 14px;
+          background-color: #10b981;
+          border: 2px solid white;
+          border-radius: 50%;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        "></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+        popupAnchor: [0, -9]
+      });
+
+      fetch('datos/puntoslimpios.geojson')
+        .then(response => response.json())
+        .then(data => {
+          // Filtrar Puntos Verdes hacia la comunidad
+          const puntosVerdesComunidadFeatures = data.features.filter(f => 
+            f.properties.FolderPath === 'Puntos Limpios/Puntos Verdes hacia la comunidad'
+          );
+          
+          const filteredData = {
+            type: 'FeatureCollection',
+            features: puntosVerdesComunidadFeatures
+          };
+
+          layers['puntos_verdes_comunidad'] = L.geoJSON(filteredData, {
+            pointToLayer: (feature, latlng) => {
+              return L.marker(latlng, { icon: puntosVerdesComunidadIcon });
+            },
+            onEachFeature: (feature, layer) => {
+              const props = feature.properties || {};
+              const puntoName = props.Name || 'Punto Verde';
+              layer.bindPopup(`<b>${puntoName}</b><br>${props.PopupInfo || 'Punto Verde hacia la comunidad'}`);
+              layer.on('click', () => {
+                showInfo({
+                  name: puntoName,
+                  tipo: 'Punto Verde hacia la comunidad',
+                  ...props
+                });
+              });
+            }
+          });
+          
+          // Agregar la capa al mapa solo si el checkbox está marcado
+          const checkbox = document.getElementById('chk-puntos-verdes-comunidad');
+          if (checkbox && checkbox.checked) {
+            layers['puntos_verdes_comunidad'].addTo(map);
+          }
+          console.log('✓ Capa de puntos verdes comunidad cargada');
+        })
+        .catch(err => console.error('Error al cargar puntos verdes comunidad:', err));
+    };
+    cargarPuntosVerdesComunidad();
+
+    // Cargar Puntos Verdes internos
+    const cargarPuntosVerdesInternos = () => {
+      const puntosVerdesInternosIcon = L.divIcon({
+        className: 'punto-verde-interno-icon',
+        html: `<div style="
+          width: 14px;
+          height: 14px;
+          background-color: #f59e0b;
+          border: 2px solid white;
+          border-radius: 50%;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        "></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+        popupAnchor: [0, -9]
+      });
+
+      fetch('datos/puntoslimpios.geojson')
+        .then(response => response.json())
+        .then(data => {
+          // Filtrar Puntos Verdes internos
+          const puntosVerdesInternosFeatures = data.features.filter(f => 
+            f.properties.FolderPath === 'Puntos Limpios/Puntos verdes Internos'
+          );
+          
+          const filteredData = {
+            type: 'FeatureCollection',
+            features: puntosVerdesInternosFeatures
+          };
+
+          layers['puntos_verdes_internos'] = L.geoJSON(filteredData, {
+            pointToLayer: (feature, latlng) => {
+              return L.marker(latlng, { icon: puntosVerdesInternosIcon });
+            },
+            onEachFeature: (feature, layer) => {
+              const props = feature.properties || {};
+              const puntoName = props.Name || 'Punto Verde';
+              layer.bindPopup(`<b>${puntoName}</b><br>${props.PopupInfo || 'Punto Verde interno'}`);
+              layer.on('click', () => {
+                showInfo({
+                  name: puntoName,
+                  tipo: 'Punto Verde interno',
+                  ...props
+                });
+              });
+            }
+          });
+          
+          // Agregar la capa al mapa solo si el checkbox está marcado
+          const checkbox = document.getElementById('chk-puntos-verdes-internos');
+          if (checkbox && checkbox.checked) {
+            layers['puntos_verdes_internos'].addTo(map);
+          }
+          console.log('✓ Capa de puntos verdes internos cargada');
+        })
+        .catch(err => console.error('Error al cargar puntos verdes internos:', err));
+    };
+    cargarPuntosVerdesInternos();
 
     // Create all layers
     Object.keys(sampleData).forEach(layerName => {
@@ -411,13 +648,13 @@ if (typeof L === 'undefined') {
       'chk-sectores': 'sectores',
       'chk-unidades': 'unidades_vecinales',
       'chk-villas': 'villas',
-      'chk-sedes': 'intervenciones_comunales',
+      'chk-sedes': 'sedes_sociales',
       'chk-peee-2024': 'peee_2024',
       'chk-peee-2025': 'peee_2025',
       'chk-peee-2024-2025': 'peee_2024_2025',
-      'chk-areas-verdes': 'areas_verdes',
       'chk-puntos-limpios': 'puntos_limpios',
-      'chk-puntos-verdes': 'puntos_verdes',
+      'chk-puntos-verdes-comunidad': 'puntos_verdes_comunidad',
+      'chk-puntos-verdes-internos': 'puntos_verdes_internos',
       'chk-intervenciones-comunales': 'intervenciones_comunales'
     };
 
@@ -432,9 +669,13 @@ if (typeof L === 'undefined') {
         checkbox.addEventListener('change', (ev) => {
           if (layers['sectores']) {
             if (ev.target.checked) {
-              layers['sectores'].addTo(map);
+              if (!map.hasLayer(layers['sectores'])) {
+                layers['sectores'].addTo(map);
+              }
             } else {
-              map.removeLayer(layers['sectores']);
+              if (map.hasLayer(layers['sectores'])) {
+                map.removeLayer(layers['sectores']);
+              }
             }
           }
         });
@@ -447,9 +688,13 @@ if (typeof L === 'undefined') {
         checkbox.addEventListener('change', (ev) => {
           if (layers['villas']) {
             if (ev.target.checked) {
-              layers['villas'].addTo(map);
+              if (!map.hasLayer(layers['villas'])) {
+                layers['villas'].addTo(map);
+              }
             } else {
-              map.removeLayer(layers['villas']);
+              if (map.hasLayer(layers['villas'])) {
+                map.removeLayer(layers['villas']);
+              }
             }
           }
         });
@@ -462,9 +707,89 @@ if (typeof L === 'undefined') {
         checkbox.addEventListener('change', (ev) => {
           if (layers['unidades_vecinales']) {
             if (ev.target.checked) {
-              layers['unidades_vecinales'].addTo(map);
+              if (!map.hasLayer(layers['unidades_vecinales'])) {
+                layers['unidades_vecinales'].addTo(map);
+              }
             } else {
-              map.removeLayer(layers['unidades_vecinales']);
+              if (map.hasLayer(layers['unidades_vecinales'])) {
+                map.removeLayer(layers['unidades_vecinales']);
+              }
+            }
+          }
+        });
+        return;
+      }
+
+      // Special handling for sedes sociales checkbox (independent layer)
+      if (checkboxId === 'chk-sedes') {
+        checkbox.checked = true; // Default checked
+        checkbox.addEventListener('change', (ev) => {
+          if (layers['sedes_sociales']) {
+            if (ev.target.checked) {
+              if (!map.hasLayer(layers['sedes_sociales'])) {
+                layers['sedes_sociales'].addTo(map);
+              }
+            } else {
+              if (map.hasLayer(layers['sedes_sociales'])) {
+                map.removeLayer(layers['sedes_sociales']);
+              }
+            }
+          }
+        });
+        return;
+      }
+
+      // Special handling for puntos limpios checkbox (independent layer)
+      if (checkboxId === 'chk-puntos-limpios') {
+        checkbox.checked = true; // Default checked
+        checkbox.addEventListener('change', (ev) => {
+          if (layers['puntos_limpios']) {
+            if (ev.target.checked) {
+              if (!map.hasLayer(layers['puntos_limpios'])) {
+                layers['puntos_limpios'].addTo(map);
+              }
+            } else {
+              if (map.hasLayer(layers['puntos_limpios'])) {
+                map.removeLayer(layers['puntos_limpios']);
+              }
+            }
+          }
+        });
+        return;
+      }
+
+      // Special handling for puntos verdes comunidad checkbox (independent layer)
+      if (checkboxId === 'chk-puntos-verdes-comunidad') {
+        checkbox.checked = true; // Default checked
+        checkbox.addEventListener('change', (ev) => {
+          if (layers['puntos_verdes_comunidad']) {
+            if (ev.target.checked) {
+              if (!map.hasLayer(layers['puntos_verdes_comunidad'])) {
+                layers['puntos_verdes_comunidad'].addTo(map);
+              }
+            } else {
+              if (map.hasLayer(layers['puntos_verdes_comunidad'])) {
+                map.removeLayer(layers['puntos_verdes_comunidad']);
+              }
+            }
+          }
+        });
+        return;
+      }
+
+      // Special handling for puntos verdes internos checkbox (independent layer)
+      if (checkboxId === 'chk-puntos-verdes-internos') {
+        checkbox.checked = true; // Default checked
+        checkbox.addEventListener('change', (ev) => {
+          if (layers['puntos_verdes_internos']) {
+            if (ev.target.checked) {
+              if (!map.hasLayer(layers['puntos_verdes_internos'])) {
+                layers['puntos_verdes_internos'].addTo(map);
+              }
+            } else {
+              if (map.hasLayer(layers['puntos_verdes_internos'])) {
+                map.removeLayer(layers['puntos_verdes_internos']);
+              }
             }
           }
         });
@@ -472,9 +797,9 @@ if (typeof L === 'undefined') {
       }
 
       // If this checkbox maps to the combined intervenciones layer but is a sub-item
-      // (sedes), we keep them as visual-only and sync them
+      // we keep them as visual-only and sync them
       // to the master checkbox.
-      const isSubItem = ['chk-sedes'].includes(checkboxId);
+      const isSubItem = [].includes(checkboxId);
 
       // Master checkbox for the combined layer
       if (checkboxId === 'chk-intervenciones-comunales') {
@@ -483,11 +808,8 @@ if (typeof L === 'undefined') {
         checkbox.addEventListener('change', (ev) => {
           if (ev.target.checked) {
             layers['intervenciones_comunales'].addTo(map);
-            // sync sub-items visually (only sedes now)
-            ['chk-sedes'].forEach(id => { const e = document.getElementById(id); if (e) e.checked = true; });
           } else {
             map.removeLayer(layers['intervenciones_comunales']);
-            ['chk-sedes'].forEach(id => { const e = document.getElementById(id); if (e) e.checked = false; });
           }
   });
   return;
