@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Gráfico PEEE</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        #container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #059669;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        button:hover {
+            background: #047857;
+        }
+        #chartContainer {
+            position: relative;
+            height: 400px;
+            margin-top: 20px;
+        }
+        #status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success { background: #d1fae5; color: #065f46; }
+        .error { background: #fee2e2; color: #991b1b; }
+        .info { background: #dbeafe; color: #1e40af; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>Test Gráfico PEEE por Sector</h1>
+        <button onclick="cargarGrafico()">Cargar Gráfico</button>
+        <div id="status"></div>
+        <div id="chartContainer">
+            <canvas id="myChart"></canvas>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+    <script>
+        console.log('Script cargado correctamente');
+        
+        function mostrarEstado(mensaje, tipo = 'info') {
+            const status = document.getElementById('status');
+            status.innerHTML = mensaje;
+            status.className = tipo;
+            console.log(mensaje);
+        }
+
+        // Función de conversión UTM a WGS84
+        function convertUTM19SToWGS84(easting, northing) {
+            const a = 6378137.0;
+            const f = 1 / 298.257223563;
+            const k0 = 0.9996;
+            const E0 = 500000;
+            const N0 = 10000000;
+            const e = Math.sqrt(2 * f - f * f);
+            const n = f / (2 - f);
+            const lambda0 = -69 * Math.PI / 180;
+
+            const xi = (northing - N0) / (k0 * a);
+            const eta = (easting - E0) / (k0 * a);
+
+            const A = [
+                1 + n * n / 4 + n * n * n * n / 64,
+                -3 * n / 2 + 9 * n * n * n / 16,
+                15 * n * n / 16 - 15 * n * n * n * n / 32,
+                -35 * n * n * n / 48
+            ];
+
+            let xi_prime = xi;
+            let eta_prime = eta;
+
+            for (let j = 1; j <= 3; j++) {
+                xi_prime -= A[j] * Math.sin(2 * j * xi) * Math.cosh(2 * j * eta);
+                eta_prime -= A[j] * Math.cos(2 * j * xi) * Math.sinh(2 * j * eta);
+            }
+
+            const chi = Math.asin(Math.sin(xi_prime) / Math.cosh(eta_prime));
+            const lambda = lambda0 + Math.atan(Math.sinh(eta_prime) / Math.cos(xi_prime));
+
+            const phi = chi + e * e * Math.sin(2 * chi) / 2;
+            const lat = phi * 180 / Math.PI;
+            const lng = lambda * 180 / Math.PI;
+
+            return { lat, lng };
+        }
+
+        let myChart = null;
+
+        async function cargarGrafico() {
+            try {
+                mostrarEstado('⏳ Iniciando carga de datos...', 'info');
+
+                // 1. Verificar Chart.js
+                if (typeof Chart === 'undefined') {
+                    throw new Error('Chart.js no está disponible');
+                }
+                mostrarEstado('✓ Chart.js cargado correctamente', 'success');
+
+                // 2. Cargar datos
+                mostrarEstado('⏳ Cargando archivos GeoJSON...', 'info');
+                const [sectoresData, peee2024Data, peee2025Data] = await Promise.all([
+                    fetch('datos/sectores.geojson').then(r => r.json()),
+                    fetch('datos/pee2024.geojson').then(r => r.json()),
+                    fetch('datos/peee2025.geojson').then(r => r.json())
+                ]);
+
+                mostrarEstado(`✓ Datos cargados: ${sectoresData.features.length} sectores, ${peee2024Data.features.length} puntos 2024, ${peee2025Data.features.length} puntos 2025`, 'success');
+
+                // 3. Convertir puntos 2024 (UTM a WGS84)
+                mostrarEstado('⏳ Convirtiendo coordenadas...', 'info');
+                const puntos2024 = peee2024Data.features.map(feature => {
+                    const coords = feature.geometry.coordinates;
+                    const wgs84 = convertUTM19SToWGS84(coords[0], coords[1]);
+                    return turf.point([wgs84.lng, wgs84.lat]);
+                });
+
+                // 4. Convertir puntos 2025 (ya en WGS84)
+                const puntos2025 = peee2025Data.features.map(feature => {
+                    const coords = feature.geometry.coordinates;
+                    return turf.point([coords[0], coords[1]]);
+                });
+
+                const todosPuntos = [...puntos2024, ...puntos2025];
+                mostrarEstado(`✓ ${todosPuntos.length} puntos totales procesados`, 'success');
+
+                // 5. Contar kits por sector
+                mostrarEstado('⏳ Contando kits por sector...', 'info');
+                const kitsPorSector = {};
+
+                sectoresData.features.forEach(sector => {
+                    const nombre = sector.properties.Name || 'Sin nombre';
+                    kitsPorSector[nombre] = 0;
+                });
+
+                let totalAsignados = 0;
+                todosPuntos.forEach(punto => {
+                    sectoresData.features.forEach(sector => {
+                        const nombre = sector.properties.Name || 'Sin nombre';
+                        try {
+                            if (turf.booleanPointInPolygon(punto, sector)) {
+                                kitsPorSector[nombre]++;
+                                totalAsignados++;
+                            }
+                        } catch (e) {
+                            console.error('Error al verificar punto:', e);
+                        }
+                    });
+                });
+
+                mostrarEstado(`✓ ${totalAsignados} kits asignados a sectores`, 'success');
+
+                // 6. Preparar datos para gráfico
+                const sectoresOrdenados = Object.entries(kitsPorSector)
+                    .sort((a, b) => b[1] - a[1]);
+
+                const labels = sectoresOrdenados.map(([nombre, _]) => nombre);
+                const datos = sectoresOrdenados.map(([_, count]) => count);
+
+                // 7. Crear gráfico
+                mostrarEstado('⏳ Creando gráfico...', 'info');
+                const canvas = document.getElementById('myChart');
+                const ctx = canvas.getContext('2d');
+
+                if (myChart) {
+                    myChart.destroy();
+                }
+
+                myChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Kits PEEE 2024-2025',
+                            data: datos,
+                            backgroundColor: 'rgba(5, 150, 105, 0.7)',
+                            borderColor: 'rgba(5, 150, 105, 1)',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Distribución de Kits PEEE por Sector de Puente Alto',
+                                font: { size: 16, weight: 'bold' }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Cantidad de Kits',
+                                    font: { size: 14, weight: 'bold' }
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Sectores',
+                                    font: { size: 14, weight: 'bold' }
+                                },
+                                ticks: {
+                                    maxRotation: 45,
+                                    minRotation: 45
+                                }
+                            }
+                        }
+                    }
+                });
+
+                mostrarEstado(`✅ ¡Gráfico creado exitosamente! Total de kits: ${datos.reduce((a,b) => a+b, 0)}`, 'success');
+
+            } catch (error) {
+                console.error('ERROR:', error);
+                mostrarEstado(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Cargar automáticamente al cargar la página
+        window.addEventListener('load', () => {
+            console.log('Página cargada, listo para crear gráfico');
+            mostrarEstado('Haz clic en el botón para cargar el gráfico', 'info');
+        });
+    </script>
+</body>
+</html>

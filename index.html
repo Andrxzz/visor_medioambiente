@@ -83,13 +83,20 @@
 
 				<details class="layer-category">
 					<summary>
-						<!-- Gestión Ambiental (single layer) -->
+						<!-- Educación Ambiental (single layer) -->
 						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 							<path d="M12 2C8 6 4 8 4 12s4 6 8 10 8-4 8-8-4-6-8-12z"></path>
 						</svg>
-						4. Gestión Ambiental
+						4. Educación Ambiental
 					</summary>
-					<label><input type="checkbox" id="chk-intervenciones-comunales" checked /> Mostrar Intervenciones comunales</label>
+					<p class="category-subtitle">Intervenciones realizadas 2025</p>
+					<label><input type="checkbox" id="chk-edu-centros-extension" /> Centros de Extensión</label>
+					<label><input type="checkbox" id="chk-edu-jardines" /> Jardines</label>
+					<label><input type="checkbox" id="chk-edu-colegios" /> Colegios</label>
+					<label><input type="checkbox" id="chk-edu-centros" /> Centros</label>
+					<label><input type="checkbox" id="chk-edu-cvt" /> CVT</label>
+					<label><input type="checkbox" id="chk-edu-adulto-mayor" /> Grupos Adulto Mayor</label>
+					<label><input type="checkbox" id="chk-edu-somos-huerto" /> Programa Somos Huerto</label>
 				</details>
 
 				<div class="filters">
@@ -131,12 +138,428 @@
 					<div class="color-segment" style="background-color: #fbbf24;"></div>
 					<div class="color-segment" style="background-color: #06b6d4;"></div>
 				</div>
+				
+				<!-- Gráfico de PEEE por Sector -->
+				<div id="chartContainer" class="chart-container" style="display: none;">
+					<div class="chart-header">
+						<h4>Distribución de Kits PEEE por Sector de Puente Alto</h4>
+						<button id="closeChart" class="close-chart-btn">
+							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<line x1="18" y1="6" x2="6" y2="18"></line>
+								<line x1="6" y1="6" x2="18" y2="18"></line>
+							</svg>
+						</button>
+					</div>
+					<div style="position: relative; height: 240px; width: 100%;">
+						<canvas id="peeeChart"></canvas>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>
 
 	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+	<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+	<!-- Chart.js desde CDN (mismo que test-grafico.html) -->
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+	
+	<!-- CÓDIGO DEL GRÁFICO - DIRECTAMENTE EN HTML -->
+	<script>
+		// Variables globales para el gráfico
+		window.peeeChartInstance = null;
+		
+		// Función de conversión UTM Zone 19S a WGS84 (CORREGIDA Y MEJORADA)
+		function convertUTM19SToWGS84(easting, northing) {
+			// Parámetros del elipsoide WGS84
+			const a = 6378137.0;  // Semi-eje mayor en metros
+			const f = 1 / 298.257223563;  // Aplanamiento
+			const k0 = 0.9996;  // Factor de escala del meridiano central
+			const E0 = 500000;  // Falso Este en metros
+			const N0 = 10000000;  // Falso Norte en metros (Hemisferio Sur)
+			const lambda0 = -69 * Math.PI / 180;  // Meridiano central UTM 19S (-69°)
+			
+			// Excentricidad
+			const e = Math.sqrt(2 * f - f * f);
+			const e2 = e * e;
+			const e4 = e2 * e2;
+			const e6 = e4 * e2;
+			
+			// Coordenadas relativas al origen
+			const x = easting - E0;
+			const y = northing - N0;
+			
+			// Latitud del pie (footpoint latitude)
+			const M = y / k0;
+			const mu = M / (a * (1 - e2/4 - 3*e4/64 - 5*e6/256));
+			
+			const phi1 = mu + 
+				(3*e2/2 - 27*e4/32) * Math.sin(2*mu) +
+				(21*e4/16 - 55*e6/32) * Math.sin(4*mu) +
+				(151*e6/96) * Math.sin(6*mu);
+			
+			// Parámetros auxiliares
+			const C1 = e2 * Math.pow(Math.cos(phi1), 2);
+			const T1 = Math.pow(Math.tan(phi1), 2);
+			const N1 = a / Math.sqrt(1 - e2 * Math.pow(Math.sin(phi1), 2));
+			const R1 = a * (1 - e2) / Math.pow(1 - e2 * Math.pow(Math.sin(phi1), 2), 1.5);
+			const D = x / (N1 * k0);
+			
+			// Calcular latitud
+			const lat = phi1 - (N1 * Math.tan(phi1) / R1) * (
+				D*D/2 - 
+				(5 + 3*T1 + 10*C1 - 4*C1*C1 - 9*e2) * D*D*D*D/24 +
+				(61 + 90*T1 + 298*C1 + 45*T1*T1 - 252*e2 - 3*C1*C1) * D*D*D*D*D*D/720
+			);
+			
+			// Calcular longitud
+			const lng = lambda0 + (
+				D - 
+				(1 + 2*T1 + C1) * D*D*D/6 +
+				(5 - 2*C1 + 28*T1 - 3*C1*C1 + 8*e2 + 24*T1*T1) * D*D*D*D*D/120
+			) / Math.cos(phi1);
+			
+			// Convertir radianes a grados
+			return {
+				lat: lat * 180 / Math.PI,
+				lng: lng * 180 / Math.PI
+			};
+		}
+		
+		// Función principal del gráfico (MEJORADA CON SEPARACIÓN 2024/2025 Y KITS FUERA DE SECTORES)
+		window.crearGraficoPEEEPorSector = async function() {
+			try {
+				alert('🎨 INICIO: La función se está ejecutando!');
+				console.log('═══════════════════════════════════════');
+				console.log('🎨 INICIO: Creando gráfico PEEE por sector');
+				console.log('═══════════════════════════════════════');
+				
+				// 1. Verificar Chart.js
+				if (typeof Chart === 'undefined') {
+					console.error('❌ Chart.js NO disponible');
+					alert('Error: Chart.js no cargado');
+					return;
+				}
+				console.log('✅ Chart.js disponible');
+				
+				// 2. Cargar datos
+				console.log('📥 Cargando datos GeoJSON...');
+				const [sectoresData, peee2024Data, peee2025Data] = await Promise.all([
+					fetch('datos/sectores.geojson').then(r => r.json()),
+					fetch('datos/pee2024.geojson').then(r => r.json()),
+					fetch('datos/peee2025.geojson').then(r => r.json())
+				]);
+				
+				const total2024Original = peee2024Data.features.length;
+				const total2025Original = peee2025Data.features.length;
+				const totalOriginal = total2024Original + total2025Original;
+				
+				console.log(`✅ Datos cargados:`);
+				console.log(`   - Sectores: ${sectoresData.features.length}`);
+				console.log(`   - Puntos 2024 (original): ${total2024Original}`);
+				console.log(`   - Puntos 2025 (original): ${total2025Original}`);
+				console.log(`   - TOTAL ESPERADO: ${totalOriginal}`);
+				
+				// 3. Convertir puntos 2024 (UTM → WGS84)
+				console.log('🔄 Convirtiendo 2024 de UTM Zone 19S a WGS84...');
+				const puntos2024 = peee2024Data.features.map((feature, idx) => {
+					const coords = feature.geometry.coordinates;
+					const wgs84 = convertUTM19SToWGS84(coords[0], coords[1]);
+					
+					if (idx === 0) {
+						console.log(`   Ejemplo conversión #1:`);
+						console.log(`   - UTM: E=${coords[0].toFixed(2)}, N=${coords[1].toFixed(2)}`);
+						console.log(`   - WGS84: Lat=${wgs84.lat.toFixed(6)}, Lng=${wgs84.lng.toFixed(6)}`);
+					}
+					
+					return turf.point([wgs84.lng, wgs84.lat]);
+				});
+				
+				// 4. Convertir puntos 2025 (ya en WGS84)
+				console.log('🔄 Procesando 2025 (ya en WGS84)...');
+				const puntos2025 = peee2025Data.features.map((feature, idx) => {
+					const coords = feature.geometry.coordinates;
+					
+					if (idx === 0) {
+						console.log(`   Ejemplo punto 2025 #1:`);
+						console.log(`   - WGS84: Lng=${coords[0].toFixed(6)}, Lat=${coords[1].toFixed(6)}`);
+					}
+					
+					return turf.point([coords[0], coords[1]]);
+				});
+				
+				console.log(`✅ Puntos convertidos y listos`);
+				
+				// 5. Contar kits por sector SEPARADAMENTE para 2024 y 2025
+				console.log('🔢 Contando kits por sector (separado por año)...');
+				const kits2024PorSector = {};
+				const kits2025PorSector = {};
+				
+				// Inicializar contadores para todos los sectores
+				sectoresData.features.forEach(sector => {
+					const nombre = sector.properties.Name || 'Sin nombre';
+					kits2024PorSector[nombre] = 0;
+					kits2025PorSector[nombre] = 0;
+				});
+				
+				// Contar kits 2024
+				let asignados2024 = 0;
+				puntos2024.forEach((punto, idx) => {
+					let encontrado = false;
+					sectoresData.features.forEach(sector => {
+						const nombre = sector.properties.Name || 'Sin nombre';
+						try {
+							if (turf.booleanPointInPolygon(punto, sector)) {
+								kits2024PorSector[nombre]++;
+								asignados2024++;
+								encontrado = true;
+							}
+						} catch (e) {
+							console.error(`Error verificando punto 2024 #${idx}:`, e);
+						}
+					});
+					
+					// Log primeros puntos NO encontrados
+					if (!encontrado && idx < 3) {
+						console.warn(`⚠️ Punto 2024 #${idx} FUERA DE SECTORES:`, punto.geometry.coordinates);
+					}
+				});
+				
+				// Contar kits 2025
+				let asignados2025 = 0;
+				puntos2025.forEach((punto, idx) => {
+					let encontrado = false;
+					sectoresData.features.forEach(sector => {
+						const nombre = sector.properties.Name || 'Sin nombre';
+						try {
+							if (turf.booleanPointInPolygon(punto, sector)) {
+								kits2025PorSector[nombre]++;
+								asignados2025++;
+								encontrado = true;
+							}
+						} catch (e) {
+							console.error(`Error verificando punto 2025 #${idx}:`, e);
+						}
+					});
+					
+					// Log primeros puntos NO encontrados
+					if (!encontrado && idx < 3) {
+						console.warn(`⚠️ Punto 2025 #${idx} FUERA DE SECTORES:`, punto.geometry.coordinates);
+					}
+				});
+				
+				const fueraDeSectores2024 = total2024Original - asignados2024;
+				const fueraDeSectores2025 = total2025Original - asignados2025;
+				const totalFueraDeSectores = fueraDeSectores2024 + fueraDeSectores2025;
+				
+				console.log(`✅ Kits asignados a sectores:`);
+				console.log(`   - 2024: ${asignados2024} de ${total2024Original} (${((asignados2024/total2024Original)*100).toFixed(1)}%)`);
+				console.log(`   - 2025: ${asignados2025} de ${total2025Original} (${((asignados2025/total2025Original)*100).toFixed(1)}%)`);
+				console.log(`   - TOTAL en sectores: ${asignados2024 + asignados2025}`);
+				console.log(`⚠️ Kits FUERA de sectores:`);
+				console.log(`   - 2024: ${fueraDeSectores2024}`);
+				console.log(`   - 2025: ${fueraDeSectores2025}`);
+				console.log(`   - TOTAL fuera: ${totalFueraDeSectores}`);
+				
+				// 6. Preparar datos para gráfico (incluyendo "Fuera de Puente Alto")
+				const sectoresConTotales = sectoresData.features.map(sector => {
+					const nombre = sector.properties.Name || 'Sin nombre';
+					return {
+						nombre,
+						kits2024: kits2024PorSector[nombre],
+						kits2025: kits2025PorSector[nombre],
+						total: kits2024PorSector[nombre] + kits2025PorSector[nombre]
+					};
+				}).sort((a, b) => {
+					// Ordenar por número de sector (SECTOR 1, SECTOR 2, etc.)
+					const getNumero = (nombre) => {
+						const match = nombre.match(/SECTOR\s+(\d+)/i);
+						return match ? parseInt(match[1]) : 999;
+					};
+					return getNumero(a.nombre) - getNumero(b.nombre);
+				});
+				
+				// Agregar categoría "Fuera de Puente Alto" si hay kits no asignados
+				if (totalFueraDeSectores > 0) {
+					sectoresConTotales.push({
+						nombre: '⚠️ Fuera de Puente Alto',
+						kits2024: fueraDeSectores2024,
+						kits2025: fueraDeSectores2025,
+						total: totalFueraDeSectores
+					});
+				}
+				
+				const labels = sectoresConTotales.map(s => s.nombre);
+				const datos2024 = sectoresConTotales.map(s => s.kits2024);
+				const datos2025 = sectoresConTotales.map(s => s.kits2025);
+				
+				console.log(`📊 Preparando datos para gráfico:`);
+				console.log(`   - Número de categorías: ${labels.length}`);
+				console.log(`   - Datos 2024:`, datos2024);
+				console.log(`   - Datos 2025:`, datos2025);
+				console.log(`   - Max valor 2024: ${Math.max(...datos2024)}`);
+				console.log(`   - Max valor 2025: ${Math.max(...datos2025)}`);
+				console.log(`   - Suma total 2024: ${datos2024.reduce((a,b) => a+b, 0)}`);
+				console.log(`   - Suma total 2025: ${datos2025.reduce((a,b) => a+b, 0)}`);
+				
+				console.log(`📊 Top 10 sectores con más kits:`);
+				sectoresConTotales.slice(0, 10).forEach((s, i) => {
+					if (s.total > 0) {
+						console.log(`   ${i+1}. ${s.nombre}: 2024=${s.kits2024}, 2025=${s.kits2025}, Total=${s.total}`);
+					}
+				});
+				
+				// 7. Crear gráfico de barras DOBLES
+				const canvas = document.getElementById('peeeChart');
+				if (!canvas) {
+					console.error('❌ Canvas NO encontrado');
+					return;
+				}
+				
+				const ctx = canvas.getContext('2d');
+				
+				// Destruir gráfico anterior si existe
+				if (window.peeeChartInstance) {
+					window.peeeChartInstance.destroy();
+					window.peeeChartInstance = null;
+				}
+				
+				window.peeeChartInstance = new Chart(ctx, {
+					type: 'bar',
+					data: {
+						labels: labels,
+						datasets: [
+							{
+								label: 'Kits 2024',
+								data: datos2024,
+								backgroundColor: 'rgba(249, 115, 22, 0.8)',  // 🟠 Naranja
+								borderColor: 'rgba(249, 115, 22, 1)',
+								borderWidth: 2
+							},
+							{
+								label: 'Kits 2025',
+								data: datos2025,
+								backgroundColor: 'rgba(168, 85, 247, 0.8)',  // 🟣 Morado
+								borderColor: 'rgba(168, 85, 247, 1)',
+								borderWidth: 2
+							}
+						]
+					},
+					options: {
+						responsive: true,
+						maintainAspectRatio: false,
+						plugins: {
+							legend: {
+								display: true,
+								position: 'top',
+								labels: { 
+									font: { size: 12, weight: 'bold' },
+									usePointStyle: true,
+									padding: 15
+								}
+							},
+							title: {
+								display: true,
+								text: `Distribución de Kits PEEE por Sector (Total: ${totalOriginal} kits)`,
+								font: { size: 14, weight: 'bold' },
+								padding: { top: 10, bottom: 20 }
+							},
+							tooltip: {
+								callbacks: {
+									label: function(context) {
+										const year = context.dataset.label;
+										const value = context.parsed.y;
+										return `${year}: ${value} kits`;
+									},
+									footer: function(tooltipItems) {
+										const total = tooltipItems.reduce((sum, item) => sum + item.parsed.y, 0);
+										return `Total: ${total} kits`;
+									}
+								},
+								backgroundColor: 'rgba(0, 0, 0, 0.8)',
+								padding: 12,
+								titleFont: { size: 13, weight: 'bold' },
+								bodyFont: { size: 12 },
+								footerFont: { size: 12, weight: 'bold' }
+							}
+						},
+						scales: {
+							y: {
+								beginAtZero: true,
+								stacked: false,
+								min: 0,
+								suggestedMax: Math.max(...datos2024, ...datos2025) * 1.1,
+								title: {
+									display: true,
+									text: 'Cantidad de Kits',
+									font: { size: 13, weight: 'bold' },
+									color: '#374151'
+								},
+								ticks: {
+									font: { size: 11 },
+									stepSize: 50,
+									callback: function(value) {
+										return value;
+									}
+								},
+								grid: {
+									color: 'rgba(0, 0, 0, 0.08)'
+								}
+							},
+							x: {
+								stacked: false,
+								title: {
+									display: true,
+									text: 'Sectores',
+									font: { size: 13, weight: 'bold' },
+									color: '#374151'
+								},
+								ticks: {
+									font: { size: 10 },
+									maxRotation: 45,
+									minRotation: 45
+								},
+								grid: {
+									display: false
+								}
+							}
+						}
+					}
+				});
+				
+				console.log('═══════════════════════════════════════');
+				console.log('✅ GRÁFICO CREADO EXITOSAMENTE');
+				console.log(`📊 Resumen final:`);
+				console.log(`   - Total kits esperados: ${totalOriginal}`);
+				console.log(`   - Kits en sectores: ${asignados2024 + asignados2025}`);
+				console.log(`   - Kits fuera de Puente Alto: ${totalFueraDeSectores}`);
+				console.log('═══════════════════════════════════════');
+				
+			} catch (error) {
+				console.error('═══════════════════════════════════════');
+				console.error('❌ ERROR CRÍTICO:', error);
+				console.error('Stack:', error.stack);
+				console.error('═══════════════════════════════════════');
+				alert('Error al crear gráfico: ' + error.message);
+			}
+		};
+		
+		console.log('✅ Función window.crearGraficoPEEEPorSector registrada');
+	</script>
+	
+	<script>
+		// Verificar que Chart.js se cargó
+		window.addEventListener('load', function() {
+			console.log('=== VERIFICACIÓN DE LIBRERÍAS ===');
+			console.log('Chart.js:', typeof Chart !== 'undefined' ? '✅ CARGADO' : '❌ NO CARGADO');
+			if (typeof Chart !== 'undefined') {
+				console.log('Chart.js versión:', Chart.version);
+			}
+			console.log('Leaflet:', typeof L !== 'undefined' ? '✅' : '❌');
+			console.log('Turf:', typeof turf !== 'undefined' ? '✅' : '❌');
+			console.log('Función gráfico:', typeof window.crearGraficoPEEEPorSector !== 'undefined' ? '✅' : '❌');
+		});
+	</script>
 	<script>
 		// Cargar capa base antes de main2.js
 		window.comunaGeoJSON = null;

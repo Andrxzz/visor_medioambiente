@@ -1,4 +1,9 @@
 // main2.js - Visor Medioambiente - Puente Alto
+console.log('🔍 Verificando librerías...');
+console.log('Leaflet:', typeof L !== 'undefined' ? '✓' : '✗');
+console.log('Turf:', typeof turf !== 'undefined' ? '✓' : '✗');
+console.log('Chart.js:', typeof Chart !== 'undefined' ? '✓' : '✗');
+
 if (typeof L === 'undefined') {
   console.error('Leaflet no está cargado');
 } else {
@@ -82,31 +87,136 @@ if (typeof L === 'undefined') {
     // destroy existing
     try { if (map && map.remove) map.remove(); } catch (e) {}
     
-    // create map
-    map = L.map('map', { attributionControl: false });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
-      maxZoom: 19, 
-      attribution: '© OpenStreetMap' 
-    }).addTo(map);
+    // create map (sin zoom control por defecto)
+    map = L.map('map', { attributionControl: false, zoomControl: false });
+    
+    // Definir los basemaps
+    const basemaps = {
+      openstreetmap: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+        maxZoom: 19, 
+        attribution: '© OpenStreetMap',
+        id: 'openstreetmap'
+      }),
+      gris: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap, © CARTO',
+        id: 'gris'
+      }),
+      satelital: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: '© Esri',
+        id: 'satelital'
+      })
+    };
+    
+    // Agregar basemap por defecto
+    basemaps.openstreetmap.addTo(map);
+    
     L.control.attribution({ prefix: false, position: 'bottomright' }).addTo(map);
 
-    // Set view to Puente Alto
-    map.setView([-33.61, -70.575], 12);
+    // Set view to Puente Alto (centro de la comuna)
+    map.setView([-33.591975, -70.566936], 13);
 
-    // Add zoom control
+    // Add zoom control solo a la derecha
     L.control.zoom({ position: 'topright' }).addTo(map);
 
     // Add scale control
     L.control.scale({ position: 'bottomleft', imperial: false }).addTo(map);
 
-    // Create Home button
+    // Agregar control de basemap
+    const BasemapControl = L.Control.extend({
+      options: { position: 'topright' },
+      onAdd: function(map) {
+        const container = L.DomUtil.create('div', 'basemap-control leaflet-bar leaflet-control');
+        container.innerHTML = `
+          <button class="basemap-toggle" title="Cambiar mapa base">🗺️</button>
+          <div class="basemap-options" style="display: none;">
+            <button data-basemap="openstreetmap" class="basemap-option active">Estándar</button>
+            <button data-basemap="gris" class="basemap-option">Gris</button>
+            <button data-basemap="satelital" class="basemap-option">Satélite</button>
+          </div>
+        `;
+        
+        const toggle = container.querySelector('.basemap-toggle');
+        const optionsPanel = container.querySelector('.basemap-options');
+        
+        // Toggle panel
+        L.DomEvent.on(toggle, 'click', function(e) {
+          L.DomEvent.stopPropagation(e);
+          L.DomEvent.preventDefault(e);
+          if (optionsPanel.style.display === 'none') {
+            optionsPanel.style.display = 'block';
+          } else {
+            optionsPanel.style.display = 'none';
+          }
+        });
+        
+        // Cambiar basemap
+        const options = container.querySelectorAll('.basemap-option');
+        options.forEach(btn => {
+          L.DomEvent.on(btn, 'click', function(e) {
+            L.DomEvent.stopPropagation(e);
+            L.DomEvent.preventDefault(e);
+            const basemapName = btn.getAttribute('data-basemap');
+            
+            // Remover todos los basemaps
+            Object.values(basemaps).forEach(layer => map.removeLayer(layer));
+            
+            // Agregar el seleccionado
+            basemaps[basemapName].addTo(map);
+            
+            // Actualizar botón activo
+            options.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            // Cerrar panel
+            optionsPanel.style.display = 'none';
+          });
+        });
+        
+        // Prevenir que los clicks en el panel se propaguen al mapa
+        L.DomEvent.disableClickPropagation(container);
+        
+        return container;
+      }
+    });
+    new BasemapControl().addTo(map);
+
+    // Agregar indicador de norte
+    const NorthControl = L.Control.extend({
+      options: { position: 'topleft' },
+      onAdd: function(map) {
+        const container = L.DomUtil.create('div', 'north-arrow leaflet-bar leaflet-control');
+        container.innerHTML = `
+          <div class="north-arrow-content">
+            <div class="north-arrow-pointer">▲</div>
+            <div class="north-arrow-label">N</div>
+          </div>
+        `;
+        container.title = 'Norte';
+        return container;
+      }
+    });
+    new NorthControl().addTo(map);
+
+    // Create Home button - centra en el centroide de Puente Alto
     const HomeControl = L.Control.extend({
       options: { position: 'topright' },
       onAdd: function(map) {
         const btn = L.DomUtil.create('div', 'home-btn leaflet-bar leaflet-control');
         btn.innerHTML = '🏠';
-        btn.title = 'Volver al inicio';
-        btn.onclick = () => map.setView([-33.61, -70.585], 13);
+        btn.title = 'Centrar en Puente Alto';
+        btn.onclick = () => {
+          // Si existe la capa de comuna, calcular su centroide
+          if (layers['comuna']) {
+            const bounds = layers['comuna'].getBounds();
+            const center = bounds.getCenter();
+            map.setView(center, 13);
+          } else {
+            // Coordenadas del centro de Puente Alto
+            map.setView([-33.6117, -70.5750], 13);
+          }
+        };
         return btn;
       }
     });
@@ -200,7 +310,21 @@ if (typeof L === 'undefined') {
             onEachFeature: (feature, layer) => {
               const props = feature.properties || {};
               const sectorName = props.Name || 'Sector desconocido';
+              
+              // Agregar popup al hacer click
               layer.bindPopup(`<b>${sectorName}</b><br>${props.PopupInfo || ''}`);
+              
+              // Agregar etiqueta permanente con el nombre del sector
+              const bounds = layer.getBounds();
+              const center = bounds.getCenter();
+              
+              layer.bindTooltip(sectorName, {
+                permanent: true,
+                direction: 'center',
+                className: 'sector-label',
+                opacity: 1
+              });
+              
               layer.on('click', () => {
                 showInfo({
                   name: sectorName,
@@ -528,6 +652,413 @@ if (typeof L === 'undefined') {
     };
     cargarPuntosVerdesInternos();
 
+    // Función para convertir coordenadas UTM Zone 19S (EPSG:32719) a WGS84 (EPSG:4326)
+    function convertUTM19SToWGS84(easting, northing) {
+      // Parámetros de UTM Zone 19S
+      const a = 6378137.0; // Radio ecuatorial WGS84
+      const f = 1 / 298.257223563; // Aplanamiento WGS84
+      const k0 = 0.9996; // Factor de escala
+      const e = Math.sqrt(2 * f - f * f); // Excentricidad
+      const e2 = e * e;
+      const n = f / (2 - f);
+      const n2 = n * n;
+      const n3 = n2 * n;
+      const n4 = n3 * n;
+      const n5 = n4 * n;
+      
+      // Zona 19S: meridiano central -69°
+      const lon0 = -69.0 * Math.PI / 180;
+      const falseEasting = 500000.0;
+      const falseNorthing = 10000000.0; // Para hemisferio sur
+      
+      // Coeficientes A
+      const A = (a / (1 + n)) * (1 + n2/4 + n4/64);
+      
+      // Normalizar coordenadas
+      const x = easting - falseEasting;
+      const y = northing - falseNorthing;
+      
+      // Latitud del pie de página
+      const xi = y / (k0 * A);
+      
+      // Coeficientes beta
+      const beta1 = (1/2)*n - (2/3)*n2 + (5/16)*n3 + (41/180)*n4 - (127/288)*n5;
+      const beta2 = (13/48)*n2 - (3/5)*n3 + (557/1440)*n4 + (281/630)*n5;
+      const beta3 = (61/240)*n3 - (103/140)*n4 + (15061/26880)*n5;
+      const beta4 = (49561/161280)*n4 - (179/168)*n5;
+      
+      const xi1 = xi 
+                - beta1 * Math.sin(2*xi) 
+                - beta2 * Math.sin(4*xi) 
+                - beta3 * Math.sin(6*xi) 
+                - beta4 * Math.sin(8*xi);
+      
+      const chi = Math.asin(Math.sin(xi1) / Math.cosh(x / (k0 * A)));
+      
+      // Latitud
+      const lat = chi 
+                + (e2/2 + 5*e2*e2/24 + e2*e2*e2/12) * Math.sin(2*chi)
+                + (7*e2*e2/48 + 29*e2*e2*e2/240) * Math.sin(4*chi)
+                + (7*e2*e2*e2/120) * Math.sin(6*chi);
+      
+      // Coeficientes eta
+      const eta1 = (1/2)*n - (2/3)*n2 + (37/96)*n3 - (1/360)*n4 - (81/512)*n5;
+      const eta2 = (1/48)*n2 + (1/15)*n3 - (437/1440)*n4 + (46/105)*n5;
+      const eta3 = (17/480)*n3 - (37/840)*n4 - (209/4480)*n5;
+      const eta4 = (4397/161280)*n4 - (11/504)*n5;
+      
+      const eta1p = xi1 
+                  - eta1 * Math.sin(2*xi1) 
+                  - eta2 * Math.sin(4*xi1) 
+                  - eta3 * Math.sin(6*xi1) 
+                  - eta4 * Math.sin(8*xi1);
+      
+      // Longitud
+      const lon = lon0 + Math.atan(Math.sinh(x / (k0 * A)) / Math.cos(xi1));
+      
+      return [lon * 180 / Math.PI, lat * 180 / Math.PI];
+    }
+
+    // Cargar capa PEEE 2024
+    const cargarPEEE2024 = () => {
+      const peee2024Icon = L.divIcon({
+        className: 'peee-2024-icon',
+        html: `<div style="
+          width: 10px;
+          height: 10px;
+          background-color: #dc2626;
+          border: 2px solid white;
+          border-radius: 50%;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        "></div>`,
+        iconSize: [10, 10],
+        iconAnchor: [5, 5],
+        popupAnchor: [0, -7]
+      });
+
+      fetch('datos/pee2024.geojson')
+        .then(response => response.json())
+        .then(data => {
+          // Convertir coordenadas UTM a WGS84
+          const convertedFeatures = data.features.map(feature => {
+            const [easting, northing] = feature.geometry.coordinates;
+            const [lon, lat] = convertUTM19SToWGS84(easting, northing);
+            
+            return {
+              ...feature,
+              geometry: {
+                type: 'Point',
+                coordinates: [lon, lat]
+              }
+            };
+          });
+
+          const convertedData = {
+            type: 'FeatureCollection',
+            features: convertedFeatures
+          };
+
+          layers['peee_2024'] = L.geoJSON(convertedData, {
+            pointToLayer: (feature, latlng) => {
+              return L.marker(latlng, { icon: peee2024Icon });
+            },
+            onEachFeature: (feature, layer) => {
+              const props = feature.properties || {};
+              const nombre = `${props.NOMBRE || ''} ${props.APELLIDO_1 || ''}`.trim() || 'Participante';
+              const sector = props.APELLIDO_2 || '-';
+              const direccion = props.DIRECCIÓN || '-';
+              const telefono = props.TELÉFONO || '-';
+              
+              layer.bindPopup(`
+                <b>${nombre}</b><br>
+                <strong>Sector:</strong> ${sector}<br>
+                <strong>Dirección:</strong> ${direccion}<br>
+                <strong>Teléfono:</strong> ${telefono}<br>
+                <em>PEEE 2024</em>
+              `);
+              
+              layer.on('click', () => {
+                showInfo({
+                  name: nombre,
+                  tipo: 'PEEE 2024',
+                  sector: sector,
+                  direccion: direccion,
+                  telefono: telefono
+                });
+              });
+            }
+          });
+          
+          const checkbox = document.getElementById('chk-peee-2024');
+          if (checkbox && checkbox.checked) {
+            layers['peee_2024'].addTo(map);
+          }
+          console.log('✓ Capa PEEE 2024 cargada con', convertedFeatures.length, 'participantes');
+        })
+        .catch(err => console.error('Error al cargar PEEE 2024:', err));
+    };
+    cargarPEEE2024();
+
+    // Cargar capa PEEE 2025
+    const cargarPEEE2025 = () => {
+      const peee2025Icon = L.divIcon({
+        className: 'peee-2025-icon',
+        html: `<div style="
+          width: 10px;
+          height: 10px;
+          background-color: #10b981;
+          border: 2px solid white;
+          border-radius: 50%;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        "></div>`,
+        iconSize: [10, 10],
+        iconAnchor: [5, 5],
+        popupAnchor: [0, -7]
+      });
+
+      fetch('datos/peee2025.geojson')
+        .then(response => response.json())
+        .then(data => {
+          // Este archivo ya está en WGS84 (CRS84), no necesita conversión
+          layers['peee_2025'] = L.geoJSON(data, {
+            pointToLayer: (feature, latlng) => {
+              return L.marker(latlng, { icon: peee2025Icon });
+            },
+            onEachFeature: (feature, layer) => {
+              const props = feature.properties || {};
+              const nombre = `${props.NOMBRE || ''} ${props.APELLIDO || ''}`.trim() || 'Participante';
+              const direccion = props.DIRECCIÓN || '-';
+              const telefono = props.TELÉFONO || '-';
+              
+              layer.bindPopup(`
+                <b>${nombre}</b><br>
+                <strong>Dirección:</strong> ${direccion}<br>
+                <strong>Teléfono:</strong> ${telefono}<br>
+                <em>PEEE 2025</em>
+              `);
+              
+              layer.on('click', () => {
+                showInfo({
+                  name: nombre,
+                  tipo: 'PEEE 2025',
+                  direccion: direccion,
+                  telefono: telefono
+                });
+              });
+            }
+          });
+          
+          const checkbox = document.getElementById('chk-peee-2025');
+          if (checkbox && checkbox.checked) {
+            layers['peee_2025'].addTo(map);
+          }
+          console.log('✓ Capa PEEE 2025 cargada con', data.features.length, 'participantes');
+        })
+        .catch(err => console.error('Error al cargar PEEE 2025:', err));
+    };
+    cargarPEEE2025();
+
+    // Cargar mapa de calor PEEE 2024-2025 combinado
+    const cargarPEEE2024_2025_Heatmap = () => {
+      Promise.all([
+        fetch('datos/pee2024.geojson').then(r => r.json()),
+        fetch('datos/peee2025.geojson').then(r => r.json())
+      ])
+      .then(([data2024, data2025]) => {
+        // Convertir datos 2024 de UTM a WGS84
+        const points2024 = data2024.features.map(feature => {
+          const [easting, northing] = feature.geometry.coordinates;
+          const [lon, lat] = convertUTM19SToWGS84(easting, northing);
+          return [lat, lon, 1]; // [lat, lng, intensity]
+        });
+
+        // Datos 2025 ya están en WGS84
+        const points2025 = data2025.features.map(feature => {
+          const [lon, lat] = feature.geometry.coordinates;
+          return [lat, lon, 1]; // [lat, lng, intensity]
+        });
+
+        // Combinar ambos conjuntos de datos
+        const allPoints = [...points2024, ...points2025];
+
+        // Crear capa de mapa de calor con colores fuertes y mucho más visible
+        layers['peee_2024_2025'] = L.heatLayer(allPoints, {
+          radius: 35,          // Aumentado de 25 a 35 para mayor alcance
+          blur: 25,            // Aumentado de 20 a 25 para mejor difuminado
+          maxZoom: 17,
+          max: 0.6,            // Reducido de 1.0 a 0.6 para mayor intensidad de color
+          minOpacity: 0.5,     // Opacidad mínima para que siempre sea visible
+          gradient: {
+            0.0: '#0000ff',    // Azul fuerte
+            0.15: '#00ffff',   // Cyan brillante
+            0.3: '#00ff00',    // Verde neón
+            0.45: '#ffff00',   // Amarillo intenso
+            0.6: '#ff9900',    // Naranja fuerte
+            0.75: '#ff0000',   // Rojo brillante
+            1.0: '#ff00ff'     // Magenta para máxima intensidad
+          }
+        });
+
+        // Asegurar que el heatmap se vea sobre otras capas
+        if (layers['peee_2024_2025']._container) {
+          layers['peee_2024_2025']._container.style.zIndex = 500;
+        }
+
+        const checkbox = document.getElementById('chk-peee-2024-2025');
+        if (checkbox && checkbox.checked) {
+          layers['peee_2024_2025'].addTo(map);
+          // Asegurar z-index después de agregar al mapa
+          setTimeout(() => {
+            if (layers['peee_2024_2025']._container) {
+              layers['peee_2024_2025']._container.style.zIndex = 500;
+            }
+          }, 100);
+        }
+        console.log('✓ Mapa de calor PEEE 2024-2025 cargado con', allPoints.length, 'puntos');
+      })
+      .catch(err => console.error('Error al cargar mapa de calor PEEE:', err));
+    };
+    cargarPEEE2024_2025_Heatmap();
+
+    // === GRÁFICO DEFINIDO EN index.html ===
+    // La función window.crearGraficoPEEEPorSector está definida en index.html
+    console.log('ℹ️ Función del gráfico cargada desde HTML');
+
+    // Botón para cerrar el gráfico
+    const closeChartBtn = document.getElementById('closeChart');
+    if (closeChartBtn) {
+      closeChartBtn.addEventListener('click', () => {
+        document.getElementById('chartContainer').style.display = 'none';
+        // Desmarcar el checkbox de 2024-2025
+        const checkbox = document.getElementById('chk-peee-2024-2025');
+        if (checkbox) {
+          checkbox.checked = false;
+          // Remover la capa del mapa
+          if (layers['peee_2024_2025'] && map.hasLayer(layers['peee_2024_2025'])) {
+            map.removeLayer(layers['peee_2024_2025']);
+          }
+        }
+      });
+    }
+
+    // Cargar capas de Educación Ambiental clasificadas por tipología
+    const eduTipologias = {
+      'Centro de Extensión': { 
+        id: 'centros_extension', 
+        checkbox: 'chk-edu-centros-extension',
+        color: '#8b5cf6',
+        label: 'Centro de Extensión'
+      },
+      'Jardín': { 
+        id: 'jardines', 
+        checkbox: 'chk-edu-jardines',
+        color: '#f472b6',
+        label: 'Jardín'
+      },
+      'Colegio': { 
+        id: 'colegios', 
+        checkbox: 'chk-edu-colegios',
+        color: '#3b82f6',
+        label: 'Colegio'
+      },
+      'Centro': { 
+        id: 'centros', 
+        checkbox: 'chk-edu-centros',
+        color: '#10b981',
+        label: 'Centro'
+      },
+      'CVT': { 
+        id: 'cvt', 
+        checkbox: 'chk-edu-cvt',
+        color: '#f59e0b',
+        label: 'CVT'
+      },
+      'Grupo Adulto Mayor': { 
+        id: 'adulto_mayor', 
+        checkbox: 'chk-edu-adulto-mayor',
+        color: '#06b6d4',
+        label: 'Grupo Adulto Mayor'
+      },
+      'Programa Somos Huerto': { 
+        id: 'somos_huerto', 
+        checkbox: 'chk-edu-somos-huerto',
+        color: '#84cc16',
+        label: 'Programa Somos Huerto'
+      }
+    };
+
+    const cargarEducacionAmbiental = () => {
+      fetch('datos/eduambiental.geojson')
+        .then(response => response.json())
+        .then(data => {
+          // Agrupar features por tipología
+          Object.entries(eduTipologias).forEach(([tipologia, config]) => {
+            const featuresFiltered = data.features.filter(f => 
+              f.properties.Tipologia === tipologia
+            );
+
+            if (featuresFiltered.length === 0) return;
+
+            const filteredData = {
+              type: 'FeatureCollection',
+              features: featuresFiltered
+            };
+
+            // Crear ícono personalizado
+            const eduIcon = L.divIcon({
+              className: `edu-${config.id}-icon`,
+              html: `<div style="
+                width: 12px;
+                height: 12px;
+                background-color: ${config.color};
+                border: 2px solid white;
+                border-radius: 50%;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+              "></div>`,
+              iconSize: [12, 12],
+              iconAnchor: [6, 6],
+              popupAnchor: [0, -8]
+            });
+
+            layers[config.id] = L.geoJSON(filteredData, {
+              pointToLayer: (feature, latlng) => {
+                return L.marker(latlng, { icon: eduIcon });
+              },
+              onEachFeature: (feature, layer) => {
+                const props = feature.properties || {};
+                const nombre = props.Name || 'Sin nombre';
+                const popupInfo = props.PopupInfo || '-';
+                
+                layer.bindPopup(`
+                  <b>${nombre}</b><br>
+                  <strong>Tipo:</strong> ${config.label}<br>
+                  <strong>Info:</strong> ${popupInfo}
+                `);
+                
+                layer.on('click', () => {
+                  showInfo({
+                    name: nombre,
+                    tipo: config.label,
+                    info: popupInfo,
+                    ...props
+                  });
+                });
+              }
+            });
+
+            // Agregar la capa al mapa solo si el checkbox está marcado
+            const checkbox = document.getElementById(config.checkbox);
+            if (checkbox && checkbox.checked) {
+              layers[config.id].addTo(map);
+            }
+          });
+          
+          console.log('✓ Capas de Educación Ambiental cargadas');
+        })
+        .catch(err => console.error('Error al cargar Educación Ambiental:', err));
+    };
+    cargarEducacionAmbiental();
+
     // Create all layers
     Object.keys(sampleData).forEach(layerName => {
       const style = layerStyles[layerName] || { fillColor: '#888', color: '#555' };
@@ -655,7 +1186,14 @@ if (typeof L === 'undefined') {
       'chk-puntos-limpios': 'puntos_limpios',
       'chk-puntos-verdes-comunidad': 'puntos_verdes_comunidad',
       'chk-puntos-verdes-internos': 'puntos_verdes_internos',
-      'chk-intervenciones-comunales': 'intervenciones_comunales'
+      'chk-intervenciones-comunales': 'intervenciones_comunales',
+      'chk-edu-centros-extension': 'centros_extension',
+      'chk-edu-jardines': 'jardines',
+      'chk-edu-colegios': 'colegios',
+      'chk-edu-centros': 'centros',
+      'chk-edu-cvt': 'cvt',
+      'chk-edu-adulto-mayor': 'adulto_mayor',
+      'chk-edu-somos-huerto': 'somos_huerto'
     };
 
     // Initialize checkbox behavior
@@ -665,7 +1203,7 @@ if (typeof L === 'undefined') {
 
       // Special handling for sectores checkbox (independent layer)
       if (checkboxId === 'chk-sectores') {
-        checkbox.checked = true; // Default checked
+        checkbox.checked = false; // Default unchecked
         checkbox.addEventListener('change', (ev) => {
           if (layers['sectores']) {
             if (ev.target.checked) {
@@ -684,7 +1222,7 @@ if (typeof L === 'undefined') {
 
       // Special handling for villas checkbox (independent layer)
       if (checkboxId === 'chk-villas') {
-        checkbox.checked = true; // Default checked
+        checkbox.checked = false; // Default unchecked
         checkbox.addEventListener('change', (ev) => {
           if (layers['villas']) {
             if (ev.target.checked) {
@@ -703,7 +1241,7 @@ if (typeof L === 'undefined') {
 
       // Special handling for unidades vecinales checkbox (independent layer)
       if (checkboxId === 'chk-unidades') {
-        checkbox.checked = true; // Default checked
+        checkbox.checked = false; // Default unchecked
         checkbox.addEventListener('change', (ev) => {
           if (layers['unidades_vecinales']) {
             if (ev.target.checked) {
@@ -722,7 +1260,7 @@ if (typeof L === 'undefined') {
 
       // Special handling for sedes sociales checkbox (independent layer)
       if (checkboxId === 'chk-sedes') {
-        checkbox.checked = true; // Default checked
+        checkbox.checked = false; // Default unchecked
         checkbox.addEventListener('change', (ev) => {
           if (layers['sedes_sociales']) {
             if (ev.target.checked) {
@@ -741,7 +1279,7 @@ if (typeof L === 'undefined') {
 
       // Special handling for puntos limpios checkbox (independent layer)
       if (checkboxId === 'chk-puntos-limpios') {
-        checkbox.checked = true; // Default checked
+        checkbox.checked = false; // Default unchecked
         checkbox.addEventListener('change', (ev) => {
           if (layers['puntos_limpios']) {
             if (ev.target.checked) {
@@ -760,7 +1298,7 @@ if (typeof L === 'undefined') {
 
       // Special handling for puntos verdes comunidad checkbox (independent layer)
       if (checkboxId === 'chk-puntos-verdes-comunidad') {
-        checkbox.checked = true; // Default checked
+        checkbox.checked = false; // Default unchecked
         checkbox.addEventListener('change', (ev) => {
           if (layers['puntos_verdes_comunidad']) {
             if (ev.target.checked) {
@@ -779,7 +1317,7 @@ if (typeof L === 'undefined') {
 
       // Special handling for puntos verdes internos checkbox (independent layer)
       if (checkboxId === 'chk-puntos-verdes-internos') {
-        checkbox.checked = true; // Default checked
+        checkbox.checked = false; // Default unchecked
         checkbox.addEventListener('change', (ev) => {
           if (layers['puntos_verdes_internos']) {
             if (ev.target.checked) {
@@ -796,6 +1334,116 @@ if (typeof L === 'undefined') {
         return;
       }
 
+      // Special handling for PEEE 2024 checkbox (independent layer)
+      if (checkboxId === 'chk-peee-2024') {
+        checkbox.checked = false; // Default unchecked
+        checkbox.addEventListener('change', (ev) => {
+          if (layers['peee_2024']) {
+            if (ev.target.checked) {
+              if (!map.hasLayer(layers['peee_2024'])) {
+                layers['peee_2024'].addTo(map);
+              }
+            } else {
+              if (map.hasLayer(layers['peee_2024'])) {
+                map.removeLayer(layers['peee_2024']);
+              }
+            }
+          }
+        });
+        return;
+      }
+
+      // Special handling for PEEE 2025 checkbox (independent layer)
+      if (checkboxId === 'chk-peee-2025') {
+        checkbox.checked = false; // Default unchecked
+        checkbox.addEventListener('change', (ev) => {
+          if (layers['peee_2025']) {
+            if (ev.target.checked) {
+              if (!map.hasLayer(layers['peee_2025'])) {
+                layers['peee_2025'].addTo(map);
+              }
+            } else {
+              if (map.hasLayer(layers['peee_2025'])) {
+                map.removeLayer(layers['peee_2025']);
+              }
+            }
+          }
+        });
+        return;
+      }
+
+      // Special handling for PEEE 2024-2025 heatmap checkbox (independent layer)
+      if (checkboxId === 'chk-peee-2024-2025') {
+        checkbox.checked = false; // Default unchecked
+        checkbox.addEventListener('change', (ev) => {
+          console.log('🔘 Checkbox 2024-2025 cambiado:', ev.target.checked);
+          if (layers['peee_2024_2025']) {
+            if (ev.target.checked) {
+              if (!map.hasLayer(layers['peee_2024_2025'])) {
+                layers['peee_2024_2025'].addTo(map);
+                // Asegurar que el heatmap se vea sobre otras capas
+                setTimeout(() => {
+                  if (layers['peee_2024_2025']._container) {
+                    layers['peee_2024_2025']._container.style.zIndex = 500;
+                  }
+                }, 100);
+              }
+              // Mostrar el gráfico
+              console.log('📊 Mostrando contenedor del gráfico...');
+              const container = document.getElementById('chartContainer');
+              console.log('Contenedor encontrado:', container);
+              container.style.display = 'block';
+              
+              // Esperar a que el contenedor sea visible antes de crear el gráfico
+              setTimeout(() => {
+                console.log('🎨 Llamando a window.crearGraficoPEEEPorSector()...');
+                if (typeof window.crearGraficoPEEEPorSector === 'function') {
+                  window.crearGraficoPEEEPorSector();
+                } else {
+                  console.error('❌ La función window.crearGraficoPEEEPorSector no está disponible');
+                }
+              }, 300);
+            } else {
+              if (map.hasLayer(layers['peee_2024_2025'])) {
+                map.removeLayer(layers['peee_2024_2025']);
+              }
+              // Ocultar el gráfico
+              document.getElementById('chartContainer').style.display = 'none';
+            }
+          }
+        });
+        return;
+      }
+
+      // Special handling for education layers (independent layers)
+      const eduCheckboxes = [
+        'chk-edu-centros-extension',
+        'chk-edu-jardines', 
+        'chk-edu-colegios',
+        'chk-edu-centros',
+        'chk-edu-cvt',
+        'chk-edu-adulto-mayor',
+        'chk-edu-somos-huerto'
+      ];
+      
+      if (eduCheckboxes.includes(checkboxId)) {
+        checkbox.checked = false; // Default unchecked
+        checkbox.addEventListener('change', (ev) => {
+          if (layers[layerName]) {
+            if (ev.target.checked) {
+              if (!map.hasLayer(layers[layerName])) {
+                layers[layerName].addTo(map);
+              }
+            } else {
+              if (map.hasLayer(layers[layerName])) {
+                map.removeLayer(layers[layerName]);
+              }
+            }
+          }
+        });
+        return;
+      }
+
       // If this checkbox maps to the combined intervenciones layer but is a sub-item
       // we keep them as visual-only and sync them
       // to the master checkbox.
@@ -803,8 +1451,8 @@ if (typeof L === 'undefined') {
 
       // Master checkbox for the combined layer
       if (checkboxId === 'chk-intervenciones-comunales') {
-        // default checked: show combined layer
-        checkbox.checked = true;
+        // default unchecked
+        checkbox.checked = false;
         checkbox.addEventListener('change', (ev) => {
           if (ev.target.checked) {
             layers['intervenciones_comunales'].addTo(map);
@@ -841,3 +1489,4 @@ if (typeof L === 'undefined') {
     });
   });
 }
+
