@@ -386,23 +386,55 @@ if (typeof L === 'undefined') {
     };
     cargarUnidadesVecinales();
 
-    // Cargar capa de Villas
+    // Función para generar colores únicos para cada villa
+    function generarColorUnico(index, total) {
+      // Generar colores usando HSL para asegurar variedad
+      const hue = (index * 360 / total) % 360;
+      const saturation = 65 + (index % 3) * 10; // 65%, 75%, 85%
+      const lightness = 50 + (index % 2) * 10; // 50%, 60%
+      return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    }
+
+    // Variable global para almacenar villas seleccionadas
+    let selectedVillaLayer = null;
+    let villasGeoJSONData = null;
+    let villasColorsMap = {};
+
+    // Cargar capa de Villas con colores únicos para cada una
     const cargarVillas = () => {
       fetch('datos/villas.geojson')
         .then(response => response.json())
         .then(data => {
-          const style = layerStyles.villas;
+          villasGeoJSONData = data;
+          
+          // Asignar un color único a cada villa
+          data.features.forEach((feature, index) => {
+            const villaName = feature.properties.Name || 'Villa desconocida';
+            villasColorsMap[villaName] = generarColorUnico(index, data.features.length);
+          });
+          
           layers['villas'] = L.geoJSON(data, {
-            style: {
-              fillColor: style.fillColor,
-              color: style.color,
-              weight: style.weight,
-              fillOpacity: style.fillOpacity
+            style: (feature) => {
+              const villaName = feature.properties.Name || 'Villa desconocida';
+              const color = villasColorsMap[villaName];
+              return {
+                fillColor: color,
+                color: color,
+                weight: 2,
+                fillOpacity: 0.5,
+                opacity: 0.8
+              };
             },
             onEachFeature: (feature, layer) => {
               const props = feature.properties || {};
               const villaName = props.Name || 'Villa desconocida';
-              layer.bindPopup(`<b>${villaName}</b>`);
+              const color = villasColorsMap[villaName];
+              
+              layer.bindPopup(`
+                <b>${villaName}</b><br>
+                <span style="color: ${color};">● Villa</span>
+              `);
+              
               layer.on('click', () => {
                 showInfo({
                   name: villaName,
@@ -410,20 +442,200 @@ if (typeof L === 'undefined') {
                   id: props.id || props.Name,
                   ...props
                 });
+                resaltarVilla(villaName);
               });
             }
           });
           
-          // Agregar la capa al mapa solo si el checkbox está marcado
+          // NO agregar la capa automáticamente, esperar al checkbox
           const checkbox = document.getElementById('chk-villas');
           if (checkbox && checkbox.checked) {
             layers['villas'].addTo(map);
           }
-          console.log('✓ Capa de villas cargada');
+          
+          // Cargar panel de villas
+          cargarPanelVillas(data);
+          
+          console.log('✓ Capa de villas cargada con', data.features.length, 'villas');
         })
         .catch(err => console.error('Error al cargar villas:', err));
     };
     cargarVillas();
+
+    // Función para cargar el panel lateral de villas
+    function cargarPanelVillas(data) {
+      const villasPanel = document.getElementById('villasPanel');
+      const villasListContent = document.getElementById('villasListContent');
+      const closeButton = document.getElementById('closeVillasPanel');
+      
+      if (!villasPanel || !villasListContent) return;
+      
+      // Obtener todas las villas y ordenarlas alfabéticamente
+      const villas = data.features
+        .map(feature => ({
+          nombre: feature.properties.Name || 'Villa desconocida',
+          color: villasColorsMap[feature.properties.Name || 'Villa desconocida']
+        }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre));
+      
+      // Generar HTML del panel con buscador
+      let html = `
+        <div class="villas-search-box">
+          <input 
+            type="text" 
+            id="villasSearchInput" 
+            class="villas-search-input"
+            placeholder="Buscar villa..." 
+          />
+        </div>
+        <div id="villasItemsContainer">
+      `;
+      
+      villas.forEach(villa => {
+        html += `
+          <div class="villa-item" data-villa-name="${villa.nombre}">
+            <span class="villa-item-dot" style="background-color: ${villa.color};"></span>
+            <span class="villa-name">${villa.nombre}</span>
+          </div>
+        `;
+      });
+      
+      html += '</div>';
+      villasListContent.innerHTML = html;
+      
+      // Event listeners para cada villa
+      document.querySelectorAll('.villa-item').forEach(item => {
+        item.addEventListener('click', function() {
+          // Remover clase selected de todos
+          document.querySelectorAll('.villa-item').forEach(i => i.classList.remove('selected'));
+          // Agregar clase selected al clickeado
+          this.classList.add('selected');
+          
+          const villaName = this.getAttribute('data-villa-name');
+          resaltarVilla(villaName);
+        });
+      });
+      
+      // Funcionalidad del buscador
+      const searchInput = document.getElementById('villasSearchInput');
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          const searchTerm = e.target.value.toLowerCase();
+          const items = document.querySelectorAll('.villa-item');
+          let visibleCount = 0;
+          
+          items.forEach(item => {
+            const villaName = item.getAttribute('data-villa-name').toLowerCase();
+            if (villaName.includes(searchTerm)) {
+              item.classList.remove('hidden');
+              visibleCount++;
+            } else {
+              item.classList.add('hidden');
+            }
+          });
+          
+          // Mostrar mensaje si no hay resultados
+          let noResultsMsg = document.getElementById('villasNoResults');
+          if (visibleCount === 0 && searchTerm !== '') {
+            if (!noResultsMsg) {
+              noResultsMsg = document.createElement('div');
+              noResultsMsg.id = 'villasNoResults';
+              noResultsMsg.className = 'villas-no-results';
+              noResultsMsg.innerHTML = `
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 8px;">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <p style="margin: 0; color: #6b7280; font-size: 13px;">No se encontraron villas</p>
+              `;
+              document.getElementById('villasItemsContainer').appendChild(noResultsMsg);
+            }
+            noResultsMsg.style.display = 'block';
+          } else if (noResultsMsg) {
+            noResultsMsg.style.display = 'none';
+          }
+        });
+      }
+      
+      // Event listener para cerrar el panel
+      if (closeButton) {
+        closeButton.addEventListener('click', () => {
+          villasPanel.style.display = 'none';
+          // Desmarcar checkbox de villas
+          const checkbox = document.getElementById('chk-villas');
+          if (checkbox) checkbox.checked = false;
+          // Remover capa del mapa
+          if (layers['villas']) {
+            map.removeLayer(layers['villas']);
+          }
+        });
+      }
+      
+      // NO mostrar el panel automáticamente - esperar al checkbox
+      villasPanel.style.display = 'none';
+    }
+
+    // Función para resaltar una villa seleccionada
+    function resaltarVilla(villaName) {
+      if (!villasGeoJSONData || !map) return;
+      
+      // Buscar la villa en los datos
+      const villaFeature = villasGeoJSONData.features.find(f => 
+        (f.properties.Name || '').toUpperCase() === villaName.toUpperCase()
+      );
+      
+      if (!villaFeature) {
+        console.warn('Villa no encontrada:', villaName);
+        return;
+      }
+      
+      // Asegurar que la capa de villas esté visible
+      const villasCheckbox = document.getElementById('chk-villas');
+      if (villasCheckbox && !villasCheckbox.checked) {
+        villasCheckbox.checked = true;
+        villasCheckbox.dispatchEvent(new Event('change'));
+      }
+      
+      // Remover resaltado anterior
+      if (selectedVillaLayer) {
+        map.removeLayer(selectedVillaLayer);
+        selectedVillaLayer = null;
+      }
+      
+      // Crear nueva capa resaltada en amarillo
+      selectedVillaLayer = L.geoJSON(villaFeature, {
+        style: {
+          fillColor: '#fbbf24',
+          color: '#f59e0b',
+          weight: 4,
+          fillOpacity: 0.6,
+          opacity: 1
+        },
+        onEachFeature: (feature, layer) => {
+          const nombre = feature.properties.Name || 'Villa desconocida';
+          const color = villasColorsMap[nombre] || '#3b82f6';
+          layer.bindPopup(`
+            <b style="font-size: 14px;">${nombre}</b><br>
+            <span style="color: ${color}; font-size: 12px;">● Villa</span><br>
+            <em style="color: #fbbf24; font-size: 11px;">Villa seleccionada</em>
+          `);
+          
+          // Abrir popup automáticamente
+          setTimeout(() => {
+            layer.openPopup();
+          }, 300);
+        }
+      }).addTo(map);
+      
+      // Hacer zoom a la villa
+      const bounds = selectedVillaLayer.getBounds();
+      map.fitBounds(bounds, {
+        padding: [50, 50],
+        maxZoom: 16
+      });
+      
+      console.log('✓ Villa resaltada:', villaName);
+    }
 
     // Cargar capa de Sedes Sociales
     const cargarSedesSociales = () => {
@@ -1059,6 +1271,159 @@ if (typeof L === 'undefined') {
     };
     cargarEducacionAmbiental();
 
+    // ======= RESIMPLE: Zonas de Recolección =======
+    const cargarReSimple = () => {
+      fetch('datos/resimples.geojson')
+        .then(response => response.json())
+        .then(data => {
+          console.log('📊 ReSimple data loaded:', data.features.length, 'features');
+          
+          // Agrupar por zona licitada
+          const zonas = {
+            'zona1': {
+              id: 'resimple_zona1',
+              nombre: 'Zona Licitada 1',
+              checkbox: 'chk-resimple-zona1',
+              color: '#3b82f6', // Azul
+              features: []
+            },
+            'zona2': {
+              id: 'resimple_zona2',
+              nombre: 'Zona Licitada 2',
+              checkbox: 'chk-resimple-zona2',
+              color: '#ef4444', // Rojo
+              features: []
+            },
+            'zona3': {
+              id: 'resimple_zona3',
+              nombre: 'Zona Licitada 3',
+              checkbox: 'chk-resimple-zona3',
+              color: '#10b981', // Verde
+              features: []
+            }
+          };
+
+          // Clasificar features por zona
+          data.features.forEach(feature => {
+            const zonaStr = (feature.properties.zonas || '').toLowerCase().trim();
+            
+            if (zonaStr.includes('zona licitada 1')) {
+              zonas.zona1.features.push(feature);
+            } else if (zonaStr.includes('zona licitada 2')) {
+              zonas.zona2.features.push(feature);
+            } else if (zonaStr.includes('zona licitada 3')) {
+              zonas.zona3.features.push(feature);
+            }
+          });
+
+          // Crear capas para cada zona
+          Object.values(zonas).forEach(zona => {
+            if (zona.features.length === 0) return;
+
+            const zonaData = {
+              type: 'FeatureCollection',
+              features: zona.features
+            };
+
+            // Crear capa con etiquetas de días
+            layers[zona.id] = L.layerGroup();
+            
+            // Capa de polígonos
+            const polygonLayer = L.geoJSON(zonaData, {
+              style: {
+                fillColor: zona.color,
+                fillOpacity: 0.3,
+                color: zona.color,
+                weight: 2,
+                opacity: 0.8
+              },
+              onEachFeature: (feature, layer) => {
+                const props = feature.properties || {};
+                const dia = (props.Name || '').trim();
+                const zonaName = props.zonas || '-';
+                
+                // Popup
+                layer.bindPopup(`
+                  <b>ReSimple - ${zona.nombre}</b><br>
+                  <strong>Día:</strong> ${dia}<br>
+                  <strong>Zona:</strong> ${zonaName}
+                `);
+                
+                // Click handler
+                layer.on('click', () => {
+                  showInfo({
+                    name: zona.nombre,
+                    dia: dia,
+                    zona: zonaName,
+                    ...props
+                  });
+                });
+              }
+            });
+            
+            layers[zona.id].addLayer(polygonLayer);
+
+            // Agregar labels para cada feature
+            zona.features.forEach(feature => {
+              const props = feature.properties || {};
+              const dia = (props.Name || '').trim().toUpperCase();
+              
+              // Calcular centroide del polígono
+              if (feature.geometry && feature.geometry.coordinates) {
+                try {
+                  const coords = feature.geometry.coordinates[0][0]; // Primer anillo del multipolígono
+                  if (coords && coords.length > 0) {
+                    // Calcular centro promedio
+                    let latSum = 0, lngSum = 0;
+                    coords.forEach(coord => {
+                      lngSum += coord[0];
+                      latSum += coord[1];
+                    });
+                    const centerLng = lngSum / coords.length;
+                    const centerLat = latSum / coords.length;
+                    
+                    // Crear marker invisible con divIcon para el label
+                    const label = L.marker([centerLat, centerLng], {
+                      icon: L.divIcon({
+                        className: 'resimple-label',
+                        html: `<div style="
+                          background-color: ${zona.color};
+                          color: white;
+                          padding: 3px 8px;
+                          border-radius: 4px;
+                          font-size: 10px;
+                          font-weight: bold;
+                          text-align: center;
+                          white-space: nowrap;
+                          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                        ">${dia}</div>`,
+                        iconSize: null,
+                        iconAnchor: [0, 0]
+                      }),
+                      interactive: false
+                    });
+                    
+                    layers[zona.id].addLayer(label);
+                  }
+                } catch (e) {
+                  console.warn('Error creando label para feature:', e);
+                }
+              }
+            });
+
+            // Agregar al mapa si el checkbox está marcado
+            const checkbox = document.getElementById(zona.checkbox);
+            if (checkbox && checkbox.checked) {
+              layers[zona.id].addTo(map);
+            }
+          });
+          
+          console.log('✓ Capas ReSimple cargadas:', Object.values(zonas).map(z => `${z.nombre}: ${z.features.length} features`).join(', '));
+        })
+        .catch(err => console.error('Error al cargar ReSimple:', err));
+    };
+    cargarReSimple();
+
     // Create all layers
     Object.keys(sampleData).forEach(layerName => {
       const style = layerStyles[layerName] || { fillColor: '#888', color: '#555' };
@@ -1193,7 +1558,10 @@ if (typeof L === 'undefined') {
       'chk-edu-centros': 'centros',
       'chk-edu-cvt': 'cvt',
       'chk-edu-adulto-mayor': 'adulto_mayor',
-      'chk-edu-somos-huerto': 'somos_huerto'
+      'chk-edu-somos-huerto': 'somos_huerto',
+      'chk-resimple-zona1': 'resimple_zona1',
+      'chk-resimple-zona2': 'resimple_zona2',
+      'chk-resimple-zona3': 'resimple_zona3'
     };
 
     // Initialize checkbox behavior
@@ -1224,14 +1592,29 @@ if (typeof L === 'undefined') {
       if (checkboxId === 'chk-villas') {
         checkbox.checked = false; // Default unchecked
         checkbox.addEventListener('change', (ev) => {
+          const villasPanel = document.getElementById('villasPanel');
+          
           if (layers['villas']) {
             if (ev.target.checked) {
+              // Mostrar capa y panel
               if (!map.hasLayer(layers['villas'])) {
                 layers['villas'].addTo(map);
               }
+              if (villasPanel) {
+                villasPanel.style.display = 'block';
+              }
             } else {
+              // Ocultar capa y panel
               if (map.hasLayer(layers['villas'])) {
                 map.removeLayer(layers['villas']);
+              }
+              if (villasPanel) {
+                villasPanel.style.display = 'none';
+              }
+              // Limpiar resaltado si existe
+              if (selectedVillaLayer) {
+                map.removeLayer(selectedVillaLayer);
+                selectedVillaLayer = null;
               }
             }
           }
@@ -1444,6 +1827,31 @@ if (typeof L === 'undefined') {
         return;
       }
 
+      // Special handling for ReSimple layers (independent layers)
+      const resimpleCheckboxes = [
+        'chk-resimple-zona1',
+        'chk-resimple-zona2',
+        'chk-resimple-zona3'
+      ];
+      
+      if (resimpleCheckboxes.includes(checkboxId)) {
+        checkbox.checked = false; // Default unchecked
+        checkbox.addEventListener('change', (ev) => {
+          if (layers[layerName]) {
+            if (ev.target.checked) {
+              if (!map.hasLayer(layers[layerName])) {
+                layers[layerName].addTo(map);
+              }
+            } else {
+              if (map.hasLayer(layers[layerName])) {
+                map.removeLayer(layers[layerName]);
+              }
+            }
+          }
+        });
+        return;
+      }
+
       // If this checkbox maps to the combined intervenciones layer but is a sub-item
       // we keep them as visual-only and sync them
       // to the master checkbox.
@@ -1488,5 +1896,6 @@ if (typeof L === 'undefined') {
       }
     });
   });
+
 }
 
