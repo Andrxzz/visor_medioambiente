@@ -92,15 +92,15 @@ if (typeof L === 'undefined') {
     
     // Definir los basemaps
     const basemaps = {
-      openstreetmap: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
-        maxZoom: 19, 
-        attribution: '© OpenStreetMap',
-        id: 'openstreetmap'
-      }),
       gris: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         maxZoom: 19,
         attribution: '© OpenStreetMap, © CARTO',
         id: 'gris'
+      }),
+      openstreetmap: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+        maxZoom: 19, 
+        attribution: '© OpenStreetMap',
+        id: 'openstreetmap'
       }),
       satelital: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         maxZoom: 19,
@@ -109,8 +109,8 @@ if (typeof L === 'undefined') {
       })
     };
     
-    // Agregar basemap por defecto
-    basemaps.openstreetmap.addTo(map);
+    // Agregar basemap por defecto (GRIS con calles)
+    basemaps.gris.addTo(map);
     
     L.control.attribution({ prefix: false, position: 'bottomright' }).addTo(map);
 
@@ -2076,13 +2076,13 @@ document.addEventListener('DOMContentLoaded', function() {
   // Click en overlay cierra el sidebar
   sidebarOverlay.addEventListener('click', toggleSidebar);
   
-  // Cerrar sidebar al hacer click en un checkbox (opcional, mejora UX)
+  // DESACTIVADO: No cerrar sidebar automáticamente al seleccionar una capa
+  // El usuario debe cerrar manualmente el sidebar con el botón hamburguesa o el overlay
+  /*
   const checkboxes = sidebar.querySelectorAll('input[type="checkbox"]');
   checkboxes.forEach(checkbox => {
     checkbox.addEventListener('change', function() {
-      // Solo cerrar en móvil (max-width: 768px)
       if (window.innerWidth <= 768) {
-        // Pequeño delay para que el usuario vea el cambio
         setTimeout(() => {
           if (sidebar.classList.contains('active')) {
             toggleSidebar();
@@ -2091,6 +2091,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
+  */
   
   // Cerrar sidebar al redimensionar a desktop
   window.addEventListener('resize', function() {
@@ -2111,8 +2112,8 @@ document.addEventListener('DOMContentLoaded', function() {
   let streetSearchMarker = null; // Marcador para resultados de búsqueda
   
   async function buscarCalle(query) {
-    if (!query || query.trim().length < 3) {
-      alert('Por favor ingrese al menos 3 caracteres para buscar');
+    if (!query || query.trim().length < 2) {
+      alert('Por favor ingrese al menos 2 caracteres para buscar');
       return;
     }
     
@@ -2120,44 +2121,72 @@ document.addEventListener('DOMContentLoaded', function() {
       // Mostrar indicador de carga
       const btnStreetSearch = document.getElementById('btnStreetSearch');
       const originalHTML = btnStreetSearch.innerHTML;
-      btnStreetSearch.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" opacity="0.3"></circle><path d="M12 2 A10 10 0 0 1 22 12"></path></svg>';
+      btnStreetSearch.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><circle cx="12" cy="12" r="10" opacity="0.3"></circle><path d="M12 2 A10 10 0 0 1 22 12"></path></svg>';
       btnStreetSearch.disabled = true;
       
-      // Construir URL de búsqueda con Nominatim (OpenStreetMap)
-      // Limitado a Puente Alto, Chile para mejorar resultados
-      const searchQuery = `${query.trim()}, Puente Alto, Chile`;
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1&countrycodes=cl`;
+      const searchInput = query.trim();
+      console.log('🔍 Iniciando búsqueda para:', searchInput);
       
-      console.log('🔍 Buscando ubicación:', searchQuery);
+      // Intentar múltiples variantes de búsqueda
+      let results = [];
       
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'VisorMedioambientePuenteAlto/1.0'
-        }
-      });
+      // Variante 1: Búsqueda específica en Puente Alto
+      const url1 = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchInput + ', Puente Alto, Chile')}&limit=5&addressdetails=1`;
+      console.log('📡 Intento 1 - URL:', url1);
       
-      if (!response.ok) {
-        throw new Error('Error en la búsqueda');
+      let response = await fetch(url1);
+      if (response.ok) {
+        results = await response.json();
+        console.log('✅ Intento 1 - Resultados:', results.length);
       }
       
-      const results = await response.json();
+      // Variante 2: Si no hay resultados, buscar en Región Metropolitana
+      if (results.length === 0) {
+        const url2 = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchInput + ', Región Metropolitana, Chile')}&limit=5&addressdetails=1`;
+        console.log('� Intento 2 - URL:', url2);
+        
+        response = await fetch(url2);
+        if (response.ok) {
+          results = await response.json();
+          console.log('✅ Intento 2 - Resultados:', results.length);
+        }
+      }
+      
+      // Variante 3: Búsqueda amplia en Chile
+      if (results.length === 0) {
+        const url3 = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchInput + ', Chile')}&limit=5&addressdetails=1&countrycodes=cl`;
+        console.log('� Intento 3 - URL:', url3);
+        
+        response = await fetch(url3);
+        if (response.ok) {
+          results = await response.json();
+          console.log('✅ Intento 3 - Resultados:', results.length);
+        }
+      }
       
       // Restaurar botón
       btnStreetSearch.innerHTML = originalHTML;
       btnStreetSearch.disabled = false;
       
       if (results.length === 0) {
-        alert(`No se encontraron resultados para "${query}" en Puente Alto.\n\nIntente con:\n- Nombre completo de calle/avenida\n- Ejemplo: "Avenida Concha y Toro"\n- Ejemplo: "Calle Los Naranjos"`);
+        alert(`❌ No se encontraron resultados para "${searchInput}"\n\n💡 Sugerencias:\n• Intente con el nombre de la calle sin número\n• Ejemplos válidos:\n  - "Concha y Toro"\n  - "Eyzaguirre"\n  - "Plaza de Armas"\n  - "Hospital Sótero del Río"\n\n🔍 La búsqueda se realizó en:\n1. Puente Alto\n2. Región Metropolitana\n3. Chile`);
+        console.warn('⚠️ No se encontraron resultados después de 3 intentos');
         return;
       }
       
-      // Tomar el primer resultado más relevante
-      const lugar = results[0];
+      // Filtrar resultados para priorizar los de Puente Alto
+      const puenteAltoResults = results.filter(r => 
+        r.display_name && r.display_name.toLowerCase().includes('puente alto')
+      );
+      
+      // Usar resultado de Puente Alto si existe, sino el primero
+      const lugar = puenteAltoResults.length > 0 ? puenteAltoResults[0] : results[0];
       const lat = parseFloat(lugar.lat);
       const lon = parseFloat(lugar.lon);
       
       console.log('✅ Ubicación encontrada:', lugar.display_name);
       console.log('📍 Coordenadas:', lat, lon);
+      console.log('🎯 Tipo:', lugar.type, '| Clase:', lugar.class);
       
       // Remover marcador anterior si existe
       if (streetSearchMarker) {

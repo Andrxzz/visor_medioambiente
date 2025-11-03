@@ -1113,6 +1113,15 @@ html, body {
 	}
 }
 
+@keyframes spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
 .layer-category {
 	animation: fadeIn 0.3s ease-out;
 }
@@ -1125,17 +1134,17 @@ html, body {
 .mobile-menu-toggle {
 	display: none;
 	position: fixed;
-	top: 15px;
-	left: 15px;
-	z-index: 1002;
+	top: 10px;
+	left: 10px;
+	z-index: 1003;
 	background: var(--verde-principal);
 	color: white;
 	border: none;
-	border-radius: 12px;
-	width: 50px;
-	height: 50px;
+	border-radius: 10px;
+	width: 45px;
+	height: 45px;
 	cursor: pointer;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 	align-items: center;
 	justify-content: center;
@@ -1209,7 +1218,7 @@ html, body {
 	.topbar {
 		height: auto;
 		min-height: 70px;
-		padding: 10px 12px;
+		padding: 10px 12px 10px 65px; /* Espacio izquierdo para el botón hamburguesa */
 		flex-wrap: wrap;
 		position: sticky;
 		top: 0;
