@@ -2109,169 +2109,77 @@ document.addEventListener('DOMContentLoaded', function() {
   // BUSCADOR DE CALLES Y UBICACIONES
   // ============================================
   
-  let streetSearchMarker = null; // Marcador para resultados de búsqueda
+  let streetSearchMarker = null;
   
-  async function buscarCalle(query) {
+  function buscarCalle(query) {
     if (!query || query.trim().length < 2) {
-      alert('Por favor ingrese al menos 2 caracteres para buscar');
+      alert('⚠️ Por favor ingrese al menos 2 caracteres para buscar');
       return;
     }
     
-    try {
-      // Mostrar indicador de carga
-      const btnStreetSearch = document.getElementById('btnStreetSearch');
-      const originalHTML = btnStreetSearch.innerHTML;
-      btnStreetSearch.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><circle cx="12" cy="12" r="10" opacity="0.3"></circle><path d="M12 2 A10 10 0 0 1 22 12"></path></svg>';
-      btnStreetSearch.disabled = true;
-      
-      const searchInput = query.trim();
-      console.log('🔍 Iniciando búsqueda para:', searchInput);
-      
-      // Intentar múltiples variantes de búsqueda
-      let results = [];
-      
-      // Variante 1: Búsqueda específica en Puente Alto
-      const url1 = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchInput + ', Puente Alto, Chile')}&limit=5&addressdetails=1`;
-      console.log('📡 Intento 1 - URL:', url1);
-      
-      let response = await fetch(url1);
-      if (response.ok) {
-        results = await response.json();
-        console.log('✅ Intento 1 - Resultados:', results.length);
-      }
-      
-      // Variante 2: Si no hay resultados, buscar en Región Metropolitana
-      if (results.length === 0) {
-        const url2 = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchInput + ', Región Metropolitana, Chile')}&limit=5&addressdetails=1`;
-        console.log('� Intento 2 - URL:', url2);
+    
+    const searchInput = query.trim();
+    const btnStreetSearch = document.getElementById('btnStreetSearch');
+    const originalHTML = btnStreetSearch.innerHTML;
+    
+    // Indicador de carga
+    btnStreetSearch.innerHTML = '⏳';
+    btnStreetSearch.disabled = true;
+    
+    console.log('🔍 BÚSQUEDA INICIADA:', searchInput);
+    
+    // URL simple y directa
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchInput + ', Puente Alto, Chile')}&format=json&limit=3`;
+    console.log('🌐 URL:', url);
+    
+    fetch(url)
+      .then(response => {
+        console.log('📡 Status:', response.status);
+        return response.json();
+      })
+      .then(data => {
+        console.log('📊 Resultados:', data.length);
+        btnStreetSearch.innerHTML = originalHTML;
+        btnStreetSearch.disabled = false;
         
-        response = await fetch(url2);
-        if (response.ok) {
-          results = await response.json();
-          console.log('✅ Intento 2 - Resultados:', results.length);
+        if (!data || data.length === 0) {
+          alert(`❌ Sin resultados para "${searchInput}"`);
+          return;
         }
-      }
-      
-      // Variante 3: Búsqueda amplia en Chile
-      if (results.length === 0) {
-        const url3 = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchInput + ', Chile')}&limit=5&addressdetails=1&countrycodes=cl`;
-        console.log('� Intento 3 - URL:', url3);
         
-        response = await fetch(url3);
-        if (response.ok) {
-          results = await response.json();
-          console.log('✅ Intento 3 - Resultados:', results.length);
+        const lugar = data[0];
+        const lat = parseFloat(lugar.lat);
+        const lon = parseFloat(lugar.lon);
+        
+        console.log('✅ ENCONTRADO:', lugar.display_name);
+        
+        if (streetSearchMarker && map.hasLayer(streetSearchMarker)) {
+          map.removeLayer(streetSearchMarker);
         }
-      }
-      
-      // Restaurar botón
-      btnStreetSearch.innerHTML = originalHTML;
-      btnStreetSearch.disabled = false;
-      
-      if (results.length === 0) {
-        alert(`❌ No se encontraron resultados para "${searchInput}"\n\n💡 Sugerencias:\n• Intente con el nombre de la calle sin número\n• Ejemplos válidos:\n  - "Concha y Toro"\n  - "Eyzaguirre"\n  - "Plaza de Armas"\n  - "Hospital Sótero del Río"\n\n🔍 La búsqueda se realizó en:\n1. Puente Alto\n2. Región Metropolitana\n3. Chile`);
-        console.warn('⚠️ No se encontraron resultados después de 3 intentos');
-        return;
-      }
-      
-      // Filtrar resultados para priorizar los de Puente Alto
-      const puenteAltoResults = results.filter(r => 
-        r.display_name && r.display_name.toLowerCase().includes('puente alto')
-      );
-      
-      // Usar resultado de Puente Alto si existe, sino el primero
-      const lugar = puenteAltoResults.length > 0 ? puenteAltoResults[0] : results[0];
-      const lat = parseFloat(lugar.lat);
-      const lon = parseFloat(lugar.lon);
-      
-      console.log('✅ Ubicación encontrada:', lugar.display_name);
-      console.log('📍 Coordenadas:', lat, lon);
-      console.log('🎯 Tipo:', lugar.type, '| Clase:', lugar.class);
-      
-      // Remover marcador anterior si existe
-      if (streetSearchMarker) {
-        map.removeLayer(streetSearchMarker);
-      }
-      
-      // Crear marcador personalizado con estilo destacado
-      const customIcon = L.divIcon({
-        className: 'street-search-marker',
-        html: `
-          <div style="
-            position: relative;
-            width: 40px;
-            height: 40px;
-          ">
-            <div style="
-              position: absolute;
-              top: 0;
-              left: 0;
-              width: 40px;
-              height: 40px;
-              background: #3b82f6;
-              border: 4px solid white;
-              border-radius: 50% 50% 50% 0;
-              transform: rotate(-45deg);
-              box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5);
-            "></div>
-            <div style="
-              position: absolute;
-              top: 50%;
-              left: 50%;
-              transform: translate(-50%, -50%);
-              color: white;
-              font-size: 20px;
-              z-index: 1;
-            ">📍</div>
-          </div>
-        `,
-        iconSize: [40, 40],
-        iconAnchor: [20, 40],
-        popupAnchor: [0, -40]
+        
+        streetSearchMarker = L.marker([lat, lon], {
+          icon: L.divIcon({
+            className: 'marker-azul',
+            html: `<div style="background: #3b82f6; width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 3px solid white; box-shadow: 0 3px 10px rgba(59,130,246,0.6); display: flex; align-items: center; justify-content: center;"><span style="transform: rotate(45deg); font-size: 16px; color: white;">📍</span></div>`,
+            iconSize: [30, 30],
+            iconAnchor: [15, 30]
+          })
+        }).addTo(map);
+        
+        streetSearchMarker.bindPopup(`<div style="padding: 8px;"><b style="color: #3b82f6;">📍 ${searchInput}</b><br><div style="font-size: 11px; margin-top: 4px;">${lugar.display_name}</div></div>`).openPopup();
+        
+        map.setView([lat, lon], 17, { animate: true });
+        
+        console.log('✅ MARCADOR CREADO');
+      })
+      .catch(error => {
+        console.error('ERROR:', error);
+        btnStreetSearch.innerHTML = originalHTML;
+        btnStreetSearch.disabled = false;
+        alert('Error: ' + error.message);
       });
-      
-      // Agregar marcador al mapa
-      streetSearchMarker = L.marker([lat, lon], { icon: customIcon })
-        .addTo(map)
-        .bindPopup(`
-          <div style="min-width: 200px;">
-            <b style="font-size: 14px; color: #3b82f6;">📍 Ubicación encontrada</b><br>
-            <div style="margin-top: 8px; font-size: 12px; color: #374151;">
-              ${lugar.display_name}
-            </div>
-            <div style="margin-top: 8px; font-size: 11px; color: #6b7280;">
-              Lat: ${lat.toFixed(6)}, Lon: ${lon.toFixed(6)}
-            </div>
-          </div>
-        `, {
-          maxWidth: 300
-        })
-        .openPopup();
-      
-      // Hacer zoom a la ubicación
-      map.setView([lat, lon], 17, {
-        animate: true,
-        duration: 1
-      });
-      
-      // Mostrar otros resultados en consola si hay múltiples
-      if (results.length > 1) {
-        console.log('ℹ️ Otros resultados encontrados:');
-        results.slice(1, 5).forEach((r, i) => {
-          console.log(`  ${i + 2}. ${r.display_name}`);
-        });
-      }
-      
-    } catch (error) {
-      console.error('❌ Error en búsqueda de ubicación:', error);
-      alert('Error al buscar la ubicación. Por favor intente nuevamente.');
-      
-      // Restaurar botón en caso de error
-      const btnStreetSearch = document.getElementById('btnStreetSearch');
-      btnStreetSearch.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>';
-      btnStreetSearch.disabled = false;
-    }
   }
+  
   
   // Event listener para el botón de búsqueda de calles
   const btnStreetSearch = document.getElementById('btnStreetSearch');
