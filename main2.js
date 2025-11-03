@@ -1442,27 +1442,47 @@ document.addEventListener('DOMContentLoaded', function() {
               features: zona.features
             };
 
+            // Colores específicos por día
+            const coloresPorDia = {
+              'LUNES': '#3b82f6',     // Azul
+              'MARTES': '#8b5cf6',    // Morado
+              'MIÉRCOLES': '#10b981', // Verde
+              'MIERCOLES': '#10b981', // Verde (sin tilde)
+              'JUEVES': '#a855f7',    // Púrpura/Morado
+              'VIERNES': '#f59e0b',   // Amarillo/Naranja
+              'SÁBADO': '#eab308',    // Amarillo
+              'SABADO': '#eab308',    // Amarillo (sin tilde)
+              'DOMINGO': '#ef4444'    // Rojo
+            };
+
             // Crear capa con etiquetas de días
             layers[zona.id] = L.layerGroup();
             
-            // Capa de polígonos
+            // Capa de polígonos con colores por día
             const polygonLayer = L.geoJSON(zonaData, {
-              style: {
-                fillColor: zona.color,
-                fillOpacity: 0.3,
-                color: zona.color,
-                weight: 2,
-                opacity: 0.8
+              style: (feature) => {
+                const dia = (feature.properties.Name || '').trim().toUpperCase();
+                const colorDia = coloresPorDia[dia] || zona.color;
+                
+                return {
+                  fillColor: colorDia,
+                  fillOpacity: 0.3,
+                  color: colorDia,
+                  weight: 2,
+                  opacity: 0.8
+                };
               },
               onEachFeature: (feature, layer) => {
                 const props = feature.properties || {};
                 const dia = (props.Name || '').trim();
                 const zonaName = props.zonas || '-';
+                const diaUpper = dia.toUpperCase();
+                const colorDia = coloresPorDia[diaUpper] || zona.color;
                 
-                // Popup
+                // Popup con color del día
                 layer.bindPopup(`
                   <b>ReSimple - ${zona.nombre}</b><br>
-                  <strong>Día:</strong> ${dia}<br>
+                  <strong>Día:</strong> <span style="color: ${colorDia}; font-weight: bold;">${dia}</span><br>
                   <strong>Zona:</strong> ${zonaName}
                 `);
                 
@@ -1485,6 +1505,9 @@ document.addEventListener('DOMContentLoaded', function() {
               const props = feature.properties || {};
               const dia = (props.Name || '').trim().toUpperCase();
               
+              // Obtener color específico del día
+              const colorDia = coloresPorDia[dia] || zona.color;
+              
               // Calcular centroide del polígono
               if (feature.geometry && feature.geometry.coordinates) {
                 try {
@@ -1504,7 +1527,7 @@ document.addEventListener('DOMContentLoaded', function() {
                       icon: L.divIcon({
                         className: 'resimple-label',
                         html: `<div style="
-                          background-color: ${zona.color};
+                          background-color: ${colorDia};
                           color: white;
                           padding: 3px 8px;
                           border-radius: 4px;
