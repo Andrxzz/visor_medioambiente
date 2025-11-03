@@ -294,6 +294,115 @@ if (typeof L === 'undefined') {
     };
     cargarComuna();
 
+    // Cargar capa del Plan Regulador Comunal (PRC)
+    const cargarPRC = () => {
+      fetch('datos/prc.geojson')
+        .then(response => response.json())
+        .then(data => {
+          // Colores variados para diferentes tipos de zonas
+          const zonaColores = {
+            'H': '#f59e0b',      // Naranja - Habitacional
+            'E': '#10b981',      // Verde - Equipamiento
+            'IM': '#8b5cf6',     // Morado - Industrial Mixto
+            'INF': '#ef4444',    // Rojo - Infraestructura
+            'AV': '#22c55e',     // Verde claro - Áreas Verdes
+            'ZCP': '#3b82f6',    // Azul - Zona de Conservación Patrimonial
+            'default': '#6b7280' // Gris - Otras zonas
+          };
+          
+          const getColorForZona = (zona) => {
+            if (!zona) return zonaColores.default;
+            
+            // Extraer prefijo de la zona (ej: "H5" -> "H", "E(i)2" -> "E")
+            const prefix = zona.match(/^[A-Z]+/)?.[0] || '';
+            return zonaColores[prefix] || zonaColores.default;
+          };
+          
+          layers['prc'] = L.geoJSON(data, {
+            style: (feature) => {
+              const zona = feature.properties.zona || '';
+              const color = getColorForZona(zona);
+              
+              return {
+                fillColor: color,
+                color: color,
+                weight: 2,
+                fillOpacity: 0.35,
+                opacity: 0.7
+              };
+            },
+            onEachFeature: (feature, layer) => {
+              const props = feature.properties || {};
+              const zona = props.zona || 'Zona desconocida';
+              const nombreZona = props.nombre_zon || '';
+              const uperm = props.uperm || 'No especificado';
+              const uproh = props.uproh || 'No especificado';
+              
+              // Crear popup con información detallada
+              const popupContent = `
+                <div style="min-width: 250px;">
+                  <b style="font-size: 14px; color: ${getColorForZona(zona)};">📋 ${zona}</b><br>
+                  <div style="margin-top: 6px; font-size: 11px; color: #6b7280;">
+                    ${nombreZona}
+                  </div>
+                  <hr style="margin: 8px 0; border: none; border-top: 1px solid #e5e7eb;">
+                  <div style="margin-top: 8px;">
+                    <b style="font-size: 12px; color: #059669;">✅ Usos Permitidos:</b><br>
+                    <div style="font-size: 11px; color: #374151; margin-top: 4px; line-height: 1.4;">
+                      ${uperm}
+                    </div>
+                  </div>
+                  <div style="margin-top: 10px;">
+                    <b style="font-size: 12px; color: #dc2626;">❌ Usos Prohibidos:</b><br>
+                    <div style="font-size: 11px; color: #374151; margin-top: 4px; line-height: 1.4;">
+                      ${uproh}
+                    </div>
+                  </div>
+                </div>
+              `;
+              
+              layer.bindPopup(popupContent, {
+                maxWidth: 350,
+                className: 'prc-popup'
+              });
+              
+              // Agregar etiqueta con el código de zona
+              layer.bindTooltip(zona, {
+                permanent: false,
+                direction: 'center',
+                className: 'prc-label',
+                opacity: 0.9
+              });
+              
+              // Efecto hover
+              layer.on('mouseover', function() {
+                this.setStyle({
+                  fillOpacity: 0.6,
+                  weight: 3
+                });
+              });
+              
+              layer.on('mouseout', function() {
+                this.setStyle({
+                  fillOpacity: 0.35,
+                  weight: 2
+                });
+              });
+            }
+          });
+          
+          // NO agregar la capa automáticamente, esperar al checkbox
+          const checkbox = document.getElementById('chk-prc');
+          if (checkbox && checkbox.checked) {
+            layers['prc'].addTo(map);
+          }
+          
+          console.log('✓ Capa del Plan Regulador Comunal cargada con', data.features.length, 'zonas');
+        })
+        .catch(err => console.error('Error al cargar PRC:', err));
+    };
+    cargarPRC();
+
     // Cargar capa de Sectores
     const cargarSectores = () => {
       fetch('datos/sectores.geojson')
@@ -1541,6 +1650,7 @@ if (typeof L === 'undefined') {
     
     // Layer checkboxes: new sidebar IDs -> layer keys
     const layerCheckboxes = {
+      'chk-prc': 'prc',
       'chk-sectores': 'sectores',
       'chk-unidades': 'unidades_vecinales',
       'chk-villas': 'villas',
@@ -1568,6 +1678,25 @@ if (typeof L === 'undefined') {
     Object.entries(layerCheckboxes).forEach(([checkboxId, layerName]) => {
       const checkbox = document.getElementById(checkboxId);
       if (!checkbox) return;
+
+      // Special handling for PRC checkbox (independent layer)
+      if (checkboxId === 'chk-prc') {
+        checkbox.checked = false; // Default unchecked
+        checkbox.addEventListener('change', (ev) => {
+          if (layers['prc']) {
+            if (ev.target.checked) {
+              if (!map.hasLayer(layers['prc'])) {
+                layers['prc'].addTo(map);
+              }
+            } else {
+              if (map.hasLayer(layers['prc'])) {
+                map.removeLayer(layers['prc']);
+              }
+            }
+          }
+        });
+        return;
+      }
 
       // Special handling for sectores checkbox (independent layer)
       if (checkboxId === 'chk-sectores') {
@@ -1611,11 +1740,20 @@ if (typeof L === 'undefined') {
               if (villasPanel) {
                 villasPanel.style.display = 'none';
               }
-              // Limpiar resaltado si existe
+              // Limpiar resaltado si existe (CORREGIDO: siempre limpiar al desactivar)
               if (selectedVillaLayer) {
-                map.removeLayer(selectedVillaLayer);
+                if (map.hasLayer(selectedVillaLayer)) {
+                  map.removeLayer(selectedVillaLayer);
+                }
                 selectedVillaLayer = null;
               }
+              
+              // Limpiar cualquier popup abierto de villas
+              map.closePopup();
+              
+              // Remover cualquier clase de selección en la lista de villas
+              const villaItems = document.querySelectorAll('.villa-item.selected');
+              villaItems.forEach(item => item.classList.remove('selected'));
             }
           }
         });
@@ -1965,5 +2103,166 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   
   console.log('✅ Mobile menu initialized');
+  
+  // ============================================
+  // BUSCADOR DE CALLES Y UBICACIONES
+  // ============================================
+  
+  let streetSearchMarker = null; // Marcador para resultados de búsqueda
+  
+  async function buscarCalle(query) {
+    if (!query || query.trim().length < 3) {
+      alert('Por favor ingrese al menos 3 caracteres para buscar');
+      return;
+    }
+    
+    try {
+      // Mostrar indicador de carga
+      const btnStreetSearch = document.getElementById('btnStreetSearch');
+      const originalHTML = btnStreetSearch.innerHTML;
+      btnStreetSearch.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" opacity="0.3"></circle><path d="M12 2 A10 10 0 0 1 22 12"></path></svg>';
+      btnStreetSearch.disabled = true;
+      
+      // Construir URL de búsqueda con Nominatim (OpenStreetMap)
+      // Limitado a Puente Alto, Chile para mejorar resultados
+      const searchQuery = `${query.trim()}, Puente Alto, Chile`;
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1&countrycodes=cl`;
+      
+      console.log('🔍 Buscando ubicación:', searchQuery);
+      
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'VisorMedioambientePuenteAlto/1.0'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Error en la búsqueda');
+      }
+      
+      const results = await response.json();
+      
+      // Restaurar botón
+      btnStreetSearch.innerHTML = originalHTML;
+      btnStreetSearch.disabled = false;
+      
+      if (results.length === 0) {
+        alert(`No se encontraron resultados para "${query}" en Puente Alto.\n\nIntente con:\n- Nombre completo de calle/avenida\n- Ejemplo: "Avenida Concha y Toro"\n- Ejemplo: "Calle Los Naranjos"`);
+        return;
+      }
+      
+      // Tomar el primer resultado más relevante
+      const lugar = results[0];
+      const lat = parseFloat(lugar.lat);
+      const lon = parseFloat(lugar.lon);
+      
+      console.log('✅ Ubicación encontrada:', lugar.display_name);
+      console.log('📍 Coordenadas:', lat, lon);
+      
+      // Remover marcador anterior si existe
+      if (streetSearchMarker) {
+        map.removeLayer(streetSearchMarker);
+      }
+      
+      // Crear marcador personalizado con estilo destacado
+      const customIcon = L.divIcon({
+        className: 'street-search-marker',
+        html: `
+          <div style="
+            position: relative;
+            width: 40px;
+            height: 40px;
+          ">
+            <div style="
+              position: absolute;
+              top: 0;
+              left: 0;
+              width: 40px;
+              height: 40px;
+              background: #3b82f6;
+              border: 4px solid white;
+              border-radius: 50% 50% 50% 0;
+              transform: rotate(-45deg);
+              box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5);
+            "></div>
+            <div style="
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              color: white;
+              font-size: 20px;
+              z-index: 1;
+            ">📍</div>
+          </div>
+        `,
+        iconSize: [40, 40],
+        iconAnchor: [20, 40],
+        popupAnchor: [0, -40]
+      });
+      
+      // Agregar marcador al mapa
+      streetSearchMarker = L.marker([lat, lon], { icon: customIcon })
+        .addTo(map)
+        .bindPopup(`
+          <div style="min-width: 200px;">
+            <b style="font-size: 14px; color: #3b82f6;">📍 Ubicación encontrada</b><br>
+            <div style="margin-top: 8px; font-size: 12px; color: #374151;">
+              ${lugar.display_name}
+            </div>
+            <div style="margin-top: 8px; font-size: 11px; color: #6b7280;">
+              Lat: ${lat.toFixed(6)}, Lon: ${lon.toFixed(6)}
+            </div>
+          </div>
+        `, {
+          maxWidth: 300
+        })
+        .openPopup();
+      
+      // Hacer zoom a la ubicación
+      map.setView([lat, lon], 17, {
+        animate: true,
+        duration: 1
+      });
+      
+      // Mostrar otros resultados en consola si hay múltiples
+      if (results.length > 1) {
+        console.log('ℹ️ Otros resultados encontrados:');
+        results.slice(1, 5).forEach((r, i) => {
+          console.log(`  ${i + 2}. ${r.display_name}`);
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Error en búsqueda de ubicación:', error);
+      alert('Error al buscar la ubicación. Por favor intente nuevamente.');
+      
+      // Restaurar botón en caso de error
+      const btnStreetSearch = document.getElementById('btnStreetSearch');
+      btnStreetSearch.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>';
+      btnStreetSearch.disabled = false;
+    }
+  }
+  
+  // Event listener para el botón de búsqueda de calles
+  const btnStreetSearch = document.getElementById('btnStreetSearch');
+  const streetSearchInput = document.getElementById('streetSearch');
+  
+  if (btnStreetSearch && streetSearchInput) {
+    btnStreetSearch.addEventListener('click', () => {
+      const query = streetSearchInput.value;
+      buscarCalle(query);
+    });
+    
+    // Permitir buscar con Enter
+    streetSearchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        const query = streetSearchInput.value;
+        buscarCalle(query);
+      }
+    });
+    
+    console.log('✅ Street search initialized');
+  }
 });
 

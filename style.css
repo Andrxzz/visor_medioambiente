@@ -98,6 +98,33 @@ html, body {
 	font-weight: 400;
 }
 
+/* Buscador de calles */
+.street-search-box {
+	margin-left: 0;
+}
+
+.street-search-box input {
+	width: 380px;
+	background: rgba(59, 130, 246, 0.05);
+	border-color: rgba(59, 130, 246, 0.2);
+}
+
+.street-search-box input:focus {
+	border-color: #3b82f6;
+	background: var(--blanco);
+	box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.street-search-box button {
+	background: #3b82f6;
+}
+
+.street-search-box button:hover {
+	background: #2563eb;
+	transform: translateY(-2px);
+	box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+}
+
 .search-box input:focus {
 	outline: none;
 	border-color: var(--verde-principal);
@@ -372,6 +399,125 @@ html, body {
 	font-size: 0.9rem;
 	color: var(--gris-600);
 	line-height: 1.6;
+}
+
+/* === Acerca del Proyecto === */
+.about-project {
+	margin-top: 20px;
+	padding: 18px;
+	background: linear-gradient(135deg, rgba(5, 150, 105, 0.05) 0%, rgba(3, 105, 161, 0.05) 100%);
+	border: 1px solid var(--verde-principal);
+	border-radius: 12px;
+	box-shadow: var(--sombra-sm);
+}
+
+.about-project h4 {
+	margin: 0 0 12px 0;
+	font-size: 1rem;
+	color: var(--verde-principal);
+	font-weight: 700;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.about-project h4::before {
+	content: "ℹ️";
+	font-size: 1.1rem;
+}
+
+.about-project p {
+	margin: 0 0 12px 0;
+	font-size: 0.85rem;
+	color: var(--gris-700);
+	line-height: 1.6;
+	text-align: justify;
+}
+
+/* Barra de colores dentro del recuadro About */
+.about-color-bar {
+	display: flex;
+	height: 6px;
+	width: 100%;
+	border-radius: 3px;
+	overflow: hidden;
+	margin: 12px 0 14px 0;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.about-color-segment {
+	flex: 1;
+	transition: transform 0.2s ease;
+}
+
+.about-color-segment:hover {
+	transform: scaleY(1.3);
+}
+
+.developer-credit {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 8px 12px;
+	background: var(--blanco);
+	border-radius: 8px;
+	font-size: 0.75rem;
+	color: var(--gris-600);
+	font-weight: 500;
+	border: 1px solid var(--gris-200);
+	margin-top: 8px;
+}
+
+.developer-credit svg {
+	color: var(--verde-principal);
+}
+
+/* === Marca de agua === */
+.watermark {
+	position: absolute;
+	bottom: 10px;
+	right: 10px;
+	z-index: 400;
+	background: rgba(255, 255, 255, 0.85);
+	color: var(--gris-600);
+	padding: 4px 10px;
+	border-radius: 6px;
+	font-size: 0.7rem;
+	font-weight: 600;
+	letter-spacing: 0.5px;
+	text-transform: uppercase;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	backdrop-filter: blur(4px);
+	pointer-events: none;
+	user-select: none;
+	font-family: 'Courier New', monospace;
+}
+
+/* === Estilos para Plan Regulador Comunal === */
+.prc-popup .leaflet-popup-content-wrapper {
+	border-radius: 12px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.prc-popup .leaflet-popup-content {
+	margin: 14px 16px;
+	line-height: 1.5;
+}
+
+.prc-label {
+	background: rgba(255, 255, 255, 0.95) !important;
+	border: 2px solid #059669 !important;
+	border-radius: 6px !important;
+	padding: 4px 8px !important;
+	font-weight: 600 !important;
+	font-size: 11px !important;
+	color: #374151 !important;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+	backdrop-filter: blur(4px) !important;
+}
+
+.prc-label:before {
+	display: none !important;
 }
 
 /* === Contenedor del mapa === */
@@ -1112,6 +1258,17 @@ html, body {
 		padding: 9px 11px;
 	}
 	
+	/* Buscador de calles en móvil */
+	.street-search-box {
+		margin-left: 0;
+		margin-top: 6px;
+		order: 4;
+	}
+	
+	.street-search-box input {
+		width: 100%;
+	}
+	
 	/* Sidebar móvil - oculto por defecto, aparece con botón */
 	#sidebar {
 		position: fixed;
@@ -1247,6 +1404,15 @@ html, body {
 		padding: 8px 10px;
 	}
 	
+	.search-box button {
+		padding: 8px 9px;
+	}
+	
+	/* Ajustar buscadores en pantallas pequeñas */
+	.street-search-box input {
+		font-size: 0.8rem;
+	}
+	
 	#sidebar {
 		width: 85%;
 		max-width: 280px;
@@ -1290,6 +1456,33 @@ html, body {
 	.villa-item {
 		padding: 10px 12px;
 		font-size: 12px;
+	}
+	
+	/* Acerca del proyecto en móvil */
+	.about-project {
+		margin-top: 16px;
+		padding: 14px;
+	}
+	
+	.about-project h4 {
+		font-size: 0.9rem;
+	}
+	
+	.about-project p {
+		font-size: 0.8rem;
+	}
+	
+	.developer-credit {
+		font-size: 0.7rem;
+		padding: 6px 10px;
+	}
+	
+	/* Marca de agua en móvil */
+	.watermark {
+		bottom: 5px;
+		right: 5px;
+		font-size: 0.6rem;
+		padding: 3px 8px;
 	}
 }
 
