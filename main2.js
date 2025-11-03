@@ -1,12 +1,20 @@
 // main2.js - Visor Medioambiente - Puente Alto
-console.log('🔍 Verificando librerías...');
-console.log('Leaflet:', typeof L !== 'undefined' ? '✓' : '✗');
-console.log('Turf:', typeof turf !== 'undefined' ? '✓' : '✗');
-console.log('Chart.js:', typeof Chart !== 'undefined' ? '✓' : '✗');
 
-if (typeof L === 'undefined') {
-  console.error('Leaflet no está cargado');
-} else {
+// Esperar a que TODO esté cargado (DOM + Leaflet)
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('🔍 Verificando librerías...');
+  console.log('Leaflet:', typeof L !== 'undefined' ? '✓' : '✗');
+  console.log('Turf:', typeof turf !== 'undefined' ? '✓' : '✗');
+  console.log('Chart.js:', typeof Chart !== 'undefined' ? '✓' : '✗');
+
+  if (typeof L === 'undefined') {
+    console.error('❌ Leaflet no está cargado');
+    alert('Error: Leaflet no se cargó correctamente. Por favor recarga la página.');
+    return;
+  }
+
+  console.log('✅ Iniciando visor...');
+
   // Setup map and layers
   let map = null;
   const layers = {}; // Store all layers by name
@@ -1625,21 +1633,20 @@ if (typeof L === 'undefined') {
     }
   }
 
-  // Wire UI on load
-  document.addEventListener('DOMContentLoaded', () => {
-    createMap();
-    
-    // Search button
-    const btnSearch = document.getElementById('btnSearch');
-    if (btnSearch) btnSearch.addEventListener('click', doSearch);
-    
-    // Enter key for search
-    const searchInput = document.getElementById('search');
-    if (searchInput) {
-      searchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') doSearch();
-      });
-    }
+  // Wire UI - Ya no necesita DOMContentLoaded porque ya estamos dentro de uno
+  createMap();
+  
+  // Search button
+  const btnSearch = document.getElementById('btnSearch');
+  if (btnSearch) btnSearch.addEventListener('click', doSearch);
+  
+  // Enter key for search
+  const searchInput = document.getElementById('search');
+  if (searchInput) {
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') doSearch();
+    });
+  }
     
     // Filter dropdowns
     const tipoSelect = document.getElementById('tipoIntervencion');
@@ -2005,8 +2012,8 @@ if (typeof L === 'undefined') {
           } else {
             map.removeLayer(layers['intervenciones_comunales']);
           }
-  });
-  return;
+        });
+        return;
       }
 
       // For sub-items (visual-only), set checked based on master
@@ -2021,8 +2028,8 @@ if (typeof L === 'undefined') {
             masterBox.checked = true;
             layers['intervenciones_comunales'].addTo(map);
           }
-  });
-  return;
+        });
+        return;
       }
 
       // Other independent layers
@@ -2032,16 +2039,12 @@ if (typeof L === 'undefined') {
           if (ev.target.checked) layers[layerName].addTo(map); else map.removeLayer(layers[layerName]);
         });
       }
-    });
-  });
+    }); // Fin del forEach de checkboxes
 
-}
+  // ========================================
+  // === MOBILE MENU FUNCTIONALITY ===
+  // ========================================
 
-// ========================================
-// === MOBILE MENU FUNCTIONALITY ===
-// ========================================
-
-document.addEventListener('DOMContentLoaded', function() {
   const mobileMenuToggle = document.getElementById('mobileMenuToggle');
   const sidebar = document.getElementById('sidebar');
   const sidebarOverlay = document.getElementById('sidebarOverlay');
@@ -2201,5 +2204,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log('✅ Street search initialized');
   }
-});
 
+  console.log('✅ Visor completamente inicializado');
+}); // FIN del DOMContentLoaded principal
