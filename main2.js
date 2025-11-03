@@ -1899,3 +1899,71 @@ if (typeof L === 'undefined') {
 
 }
 
+// ========================================
+// === MOBILE MENU FUNCTIONALITY ===
+// ========================================
+
+document.addEventListener('DOMContentLoaded', function() {
+  const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+  const sidebar = document.getElementById('sidebar');
+  const sidebarOverlay = document.getElementById('sidebarOverlay');
+  
+  if (!mobileMenuToggle || !sidebar || !sidebarOverlay) {
+    console.warn('Elementos del menú móvil no encontrados');
+    return;
+  }
+  
+  // Función para abrir/cerrar sidebar
+  function toggleSidebar() {
+    const isActive = sidebar.classList.contains('active');
+    
+    if (isActive) {
+      // Cerrar
+      sidebar.classList.remove('active');
+      sidebarOverlay.classList.remove('active');
+      mobileMenuToggle.classList.remove('active');
+      document.body.style.overflow = ''; // Restaurar scroll
+    } else {
+      // Abrir
+      sidebar.classList.add('active');
+      sidebarOverlay.classList.add('active');
+      mobileMenuToggle.classList.add('active');
+      document.body.style.overflow = 'hidden'; // Prevenir scroll del body
+    }
+  }
+  
+  // Click en botón hamburguesa
+  mobileMenuToggle.addEventListener('click', toggleSidebar);
+  
+  // Click en overlay cierra el sidebar
+  sidebarOverlay.addEventListener('click', toggleSidebar);
+  
+  // Cerrar sidebar al hacer click en un checkbox (opcional, mejora UX)
+  const checkboxes = sidebar.querySelectorAll('input[type="checkbox"]');
+  checkboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+      // Solo cerrar en móvil (max-width: 768px)
+      if (window.innerWidth <= 768) {
+        // Pequeño delay para que el usuario vea el cambio
+        setTimeout(() => {
+          if (sidebar.classList.contains('active')) {
+            toggleSidebar();
+          }
+        }, 300);
+      }
+    });
+  });
+  
+  // Cerrar sidebar al redimensionar a desktop
+  window.addEventListener('resize', function() {
+    if (window.innerWidth > 768 && sidebar.classList.contains('active')) {
+      sidebar.classList.remove('active');
+      sidebarOverlay.classList.remove('active');
+      mobileMenuToggle.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+  });
+  
+  console.log('✅ Mobile menu initialized');
+});
+
