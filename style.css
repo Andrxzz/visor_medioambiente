@@ -1520,3 +1520,42 @@ html, body {
 	}
 }
 
+/* ============================================ */
+/* POPUP PERSONALIZADO PARA DIRECCIONES */
+/* ============================================ */
+
+.custom-popup-direccion .leaflet-popup-content-wrapper {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 12px !important;
+}
+
+.custom-popup-direccion .leaflet-popup-content {
+  margin: 0 !important;
+  width: auto !important;
+}
+
+.custom-popup-direccion .leaflet-popup-tip-container {
+  display: none !important; /* Sin punta triangular */
+}
+
+/* Animación suave para el marcador */
+.marker-direccion-custom {
+  animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0) translateY(-50px);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1) translateY(0);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+

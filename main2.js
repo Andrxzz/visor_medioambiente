@@ -2114,6 +2114,15 @@ document.addEventListener('DOMContentLoaded', function() {
   
   let streetSearchMarker = null;
   
+  // Función global para cerrar popup y eliminar marcador
+  window.cerrarMarcadorDireccion = function() {
+    if (streetSearchMarker && map.hasLayer(streetSearchMarker)) {
+      map.removeLayer(streetSearchMarker);
+      streetSearchMarker = null;
+      console.log('🗑️ Marcador de dirección eliminado');
+    }
+  };
+  
   function buscarCalle(query) {
     if (!query || query.trim().length < 2) {
       alert('⚠️ Por favor ingrese al menos 2 caracteres para buscar');
@@ -2156,20 +2165,90 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log('✅ ENCONTRADO:', lugar.display_name);
         
+        // Remover marcador anterior si existe
         if (streetSearchMarker && map.hasLayer(streetSearchMarker)) {
           map.removeLayer(streetSearchMarker);
         }
         
+        // MARCADOR AZUL SIMPLE (sin pin superpuesto)
         streetSearchMarker = L.marker([lat, lon], {
           icon: L.divIcon({
-            className: 'marker-azul',
-            html: `<div style="background: #3b82f6; width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 3px solid white; box-shadow: 0 3px 10px rgba(59,130,246,0.6); display: flex; align-items: center; justify-content: center;"><span style="transform: rotate(45deg); font-size: 16px; color: white;">📍</span></div>`,
-            iconSize: [30, 30],
-            iconAnchor: [15, 30]
+            className: 'marker-direccion-custom',
+            html: `
+              <div style="
+                width: 40px;
+                height: 40px;
+                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                border-radius: 50%;
+                border: 3px solid white;
+                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+              ">
+                🏠
+              </div>
+            `,
+            iconSize: [40, 40],
+            iconAnchor: [20, 40],
+            popupAnchor: [0, -45]
           })
         }).addTo(map);
         
-        streetSearchMarker.bindPopup(`<div style="padding: 8px;"><b style="color: #3b82f6;">📍 ${searchInput}</b><br><div style="font-size: 11px; margin-top: 4px;">${lugar.display_name}</div></div>`).openPopup();
+        // POPUP MODERNO CON FONDO VERDE PASTEL Y BOTÓN X
+        const popupContent = `
+          <div style="
+            position: relative;
+            padding: 16px;
+            padding-top: 12px;
+            background: linear-gradient(135deg, #d4f1dd 0%, #e8f5e9 100%);
+            border-radius: 12px;
+            min-width: 220px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+          ">
+            <button onclick="window.cerrarMarcadorDireccion();" 
+              style="
+                position: absolute;
+                top: 8px;
+                right: 8px;
+                background: rgba(255,255,255,0.9);
+                border: none;
+                border-radius: 50%;
+                width: 24px;
+                height: 24px;
+                cursor: pointer;
+                font-size: 16px;
+                line-height: 1;
+                color: #059669;
+                font-weight: bold;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                transition: all 0.2s;
+              "
+              onmouseover="this.style.background='rgba(220,38,38,0.1)'; this.style.color='#dc2626';"
+              onmouseout="this.style.background='rgba(255,255,255,0.9)'; this.style.color='#059669';"
+              title="Cerrar y eliminar marcador"
+            >×</button>
+            
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+              <span style="font-size: 24px;">🏠</span>
+              <div>
+                <div style="font-size: 15px; font-weight: 600; color: #059669; margin-bottom: 4px;">
+                  ${searchInput}
+                </div>
+                <div style="font-size: 12px; color: #047857; line-height: 1.4;">
+                  ${lugar.display_name}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        streetSearchMarker.bindPopup(popupContent, {
+          closeButton: false, // Desactivar botón X por defecto (usamos el nuestro)
+          maxWidth: 320,
+          className: 'custom-popup-direccion'
+        }).openPopup();
         
         map.setView([lat, lon], 17, { animate: true });
         
