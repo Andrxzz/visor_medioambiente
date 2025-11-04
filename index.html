@@ -77,9 +77,9 @@
 						</svg>
 						2. Programa PEEE
 					</summary>
-					<label><input type="checkbox" id="chk-peee-2024" checked /> 2024</label>
-					<label><input type="checkbox" id="chk-peee-2025" checked /> 2025</label>
-					<label><input type="checkbox" id="chk-peee-2024-2025" checked /> 2024 - 2025</label>
+				<label><input type="checkbox" id="chk-peee-2024" checked /> 2024</label>
+				<label><input type="checkbox" id="chk-peee-2025" checked /> 2025</label>
+				<label><input type="checkbox" id="chk-peee-2024-2025" checked /> 2024 - 2025</label>
 				</details>
 
 				<details class="layer-category">
@@ -179,31 +179,32 @@
 					</div>
 				</div>
 				
-				<!-- Barra de colores horizontal -->
-				<div class="color-bar">
-					<div class="color-segment" style="background-color: #1e3a8a;"></div>
-					<div class="color-segment" style="background-color: #dc2626;"></div>
-					<div class="color-segment" style="background-color: #06b6d4;"></div>
-					<div class="color-segment" style="background-color: #fbbf24;"></div>
-					<div class="color-segment" style="background-color: #06b6d4;"></div>
-				</div>
-				
-				<!-- Gráfico de PEEE por Sector -->
-				<div id="chartContainer" class="chart-container" style="display: none;">
-					<div class="chart-header">
-						<h4>Distribución de Kits PEEE por Sector de Puente Alto</h4>
-						<button id="closeChart" class="close-chart-btn">
-							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-								<line x1="18" y1="6" x2="6" y2="18"></line>
-								<line x1="6" y1="6" x2="18" y2="18"></line>
-							</svg>
-						</button>
-					</div>
-					<div style="position: relative; height: 240px; width: 100%;">
-						<canvas id="peeeChart"></canvas>
-					</div>
-				</div>
+			<!-- Barra de colores horizontal -->
+			<div class="color-bar">
+				<div class="color-segment" style="background-color: #1e3a8a;"></div>
+				<div class="color-segment" style="background-color: #dc2626;"></div>
+				<div class="color-segment" style="background-color: #06b6d4;"></div>
+				<div class="color-segment" style="background-color: #fbbf24;"></div>
+				<div class="color-segment" style="background-color: #06b6d4;"></div>
 			</div>
+			
+		<!-- Panel flotante del gráfico PEEE -->
+		<div id="peee-chart-container" style="display: none;">
+			<div class="peee-chart-header">
+				<h3>📊 Distribución de Kits PEEE por Sector</h3>
+				<button id="close-peee-chart" class="close-btn">&times;</button>
+			</div>
+			<div class="peee-chart-content">
+				<canvas id="peee-chart"></canvas>
+			</div>
+			<div id="peee-chart-info" class="chart-info"></div>
+		</div>
+
+		<!-- Botón flotante para reabrir el gráfico PEEE -->
+		<button id="btn-reabrir-grafico-peee" style="display: none;" title="Abrir gráfico PEEE">
+			📊
+		</button>
+		</div>
 		</div>
 	</div>
 

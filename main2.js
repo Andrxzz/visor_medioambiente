@@ -100,10 +100,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Definir los basemaps
     const basemaps = {
-      gris: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      topografico: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
         maxZoom: 19,
-        attribution: '© OpenStreetMap, © CARTO',
-        id: 'gris'
+        attribution: '© Esri',
+        opacity: 0.7, // Transparencia para que destaquen las capas geográficas
+        id: 'topografico'
       }),
       openstreetmap: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
         maxZoom: 19, 
@@ -117,8 +118,8 @@ document.addEventListener('DOMContentLoaded', function() {
       })
     };
     
-    // Agregar basemap por defecto (GRIS con calles)
-    basemaps.gris.addTo(map);
+    // Agregar basemap por defecto (TOPOGRÁFICO)
+    basemaps.topografico.addTo(map);
     
     L.control.attribution({ prefix: false, position: 'bottomright' }).addTo(map);
 
@@ -139,8 +140,8 @@ document.addEventListener('DOMContentLoaded', function() {
         container.innerHTML = `
           <button class="basemap-toggle" title="Cambiar mapa base">🗺️</button>
           <div class="basemap-options" style="display: none;">
-            <button data-basemap="openstreetmap" class="basemap-option active">Estándar</button>
-            <button data-basemap="gris" class="basemap-option">Gris</button>
+            <button data-basemap="topografico" class="basemap-option active">Topográfico</button>
+            <button data-basemap="openstreetmap" class="basemap-option">Estándar</button>
             <button data-basemap="satelital" class="basemap-option">Satélite</button>
           </div>
         `;
@@ -721,6 +722,8 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Crear nueva capa resaltada en amarillo
       selectedVillaLayer = L.geoJSON(villaFeature, {
+        className: 'villa-resaltada', // Identificador para poder limpiarla después
+        villaHighlight: true, // Marcador especial para identificar este layer
         style: {
           fillColor: '#fbbf24',
           color: '#f59e0b',
@@ -743,6 +746,9 @@ document.addEventListener('DOMContentLoaded', function() {
           }, 300);
         }
       }).addTo(map);
+      
+      // Guardar también en window para acceso global
+      window.selectedVillaLayer = selectedVillaLayer;
       
       // Hacer zoom a la villa
       const bounds = selectedVillaLayer.getBounds();
@@ -1212,19 +1218,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Crear capa de mapa de calor con colores fuertes y mucho más visible
         layers['peee_2024_2025'] = L.heatLayer(allPoints, {
-          radius: 35,          // Aumentado de 25 a 35 para mayor alcance
-          blur: 25,            // Aumentado de 20 a 25 para mejor difuminado
+          radius: 20,          // Valor normal
+          blur: 15,            // Valor normal
           maxZoom: 17,
-          max: 0.6,            // Reducido de 1.0 a 0.6 para mayor intensidad de color
-          minOpacity: 0.5,     // Opacidad mínima para que siempre sea visible
+          max: 1.0,            // Valor normal
+          minOpacity: 0.3,     // Opacidad normal
           gradient: {
-            0.0: '#0000ff',    // Azul fuerte
-            0.15: '#00ffff',   // Cyan brillante
-            0.3: '#00ff00',    // Verde neón
-            0.45: '#ffff00',   // Amarillo intenso
-            0.6: '#ff9900',    // Naranja fuerte
-            0.75: '#ff0000',   // Rojo brillante
-            1.0: '#ff00ff'     // Magenta para máxima intensidad
+            0.0: '#0000ff',    // Azul
+            0.15: '#00ffff',   // Cyan
+            0.3: '#00ff00',    // Verde
+            0.45: '#ffff00',   // Amarillo
+            0.6: '#ff9900',    // Naranja
+            0.75: '#ff0000',   // Rojo
+            1.0: '#ff00ff'     // Magenta
           }
         });
 
@@ -1251,24 +1257,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // === GRÁFICO DEFINIDO EN index.html ===
     // La función window.crearGraficoPEEEPorSector está definida en index.html
-    console.log('ℹ️ Función del gráfico cargada desde HTML');
+    console.log('ℹ️ Gráfico PEEE ahora se abre en nueva pestaña (grafico-peee-sectores.html)');
 
-    // Botón para cerrar el gráfico
-    const closeChartBtn = document.getElementById('closeChart');
-    if (closeChartBtn) {
-      closeChartBtn.addEventListener('click', () => {
-        document.getElementById('chartContainer').style.display = 'none';
-        // Desmarcar el checkbox de 2024-2025
-        const checkbox = document.getElementById('chk-peee-2024-2025');
-        if (checkbox) {
-          checkbox.checked = false;
-          // Remover la capa del mapa
-          if (layers['peee_2024_2025'] && map.hasLayer(layers['peee_2024_2025'])) {
-            map.removeLayer(layers['peee_2024_2025']);
-          }
-        }
-      });
-    }
+    // NOTA: El gráfico antiguo inline fue reemplazado por un archivo HTML independiente
+    // que se abre en una nueva pestaña cuando se activa el checkbox de PEEE 2024-2025
 
     // Cargar capas de Educación Ambiental clasificadas por tipología
     const eduTipologias = {
@@ -1770,13 +1762,51 @@ document.addEventListener('DOMContentLoaded', function() {
               if (villasPanel) {
                 villasPanel.style.display = 'none';
               }
-              // Limpiar resaltado si existe (CORREGIDO: siempre limpiar al desactivar)
-              if (selectedVillaLayer) {
-                if (map.hasLayer(selectedVillaLayer)) {
-                  map.removeLayer(selectedVillaLayer);
+              
+              // LIMPIAR VILLA SELECCIONADA (resaltada) - TRIPLE MÉTODO
+              console.log('🧹 Limpiando villa seleccionada...');
+              let removedCount = 0;
+              
+              // Método 1: Remover usando la variable global
+              if (window.selectedVillaLayer || selectedVillaLayer) {
+                const layerToRemove = window.selectedVillaLayer || selectedVillaLayer;
+                try {
+                  if (map.hasLayer(layerToRemove)) {
+                    map.removeLayer(layerToRemove);
+                    removedCount++;
+                    console.log('✓ selectedVillaLayer removida');
+                  }
+                } catch (e) {
+                  console.warn('Error al remover selectedVillaLayer:', e);
                 }
+                if (window.selectedVillaLayer) window.selectedVillaLayer = null;
                 selectedVillaLayer = null;
               }
+              
+              // Método 2: Buscar por propiedad villaHighlight
+              const layersToRemove = [];
+              map.eachLayer(function(layer) {
+                // Si tiene la marca de villa highlight
+                if (layer.options && layer.options.villaHighlight === true) {
+                  layersToRemove.push(layer);
+                }
+                // O si es una capa GeoJSON que no es la principal de villas
+                else if (layer instanceof L.GeoJSON && layer !== layers['villas']) {
+                  layersToRemove.push(layer);
+                }
+              });
+              
+              layersToRemove.forEach(layer => {
+                try {
+                  map.removeLayer(layer);
+                  removedCount++;
+                  console.log('✓ Capa GeoJSON extra removida');
+                } catch (e) {
+                  console.warn('Error removiendo capa:', e);
+                }
+              });
+              
+              console.log(`✅ Limpieza completada - ${removedCount} capa(s) removida(s)`);
               
               // Limpiar cualquier popup abierto de villas
               map.closePopup();
@@ -1939,31 +1969,55 @@ document.addEventListener('DOMContentLoaded', function() {
                   }
                 }, 100);
               }
-              // Mostrar el gráfico
-              console.log('📊 Mostrando contenedor del gráfico...');
-              const container = document.getElementById('chartContainer');
-              console.log('Contenedor encontrado:', container);
-              container.style.display = 'block';
               
-              // Esperar a que el contenedor sea visible antes de crear el gráfico
-              setTimeout(() => {
-                console.log('🎨 Llamando a window.crearGraficoPEEEPorSector()...');
-                if (typeof window.crearGraficoPEEEPorSector === 'function') {
-                  window.crearGraficoPEEEPorSector();
-                } else {
-                  console.error('❌ La función window.crearGraficoPEEEPorSector no está disponible');
-                }
-              }, 300);
+              // Mostrar el gráfico PEEE en el panel flotante
+              mostrarGraficoPEEE();
             } else {
               if (map.hasLayer(layers['peee_2024_2025'])) {
                 map.removeLayer(layers['peee_2024_2025']);
               }
-              // Ocultar el gráfico
-              document.getElementById('chartContainer').style.display = 'none';
+              // Ocultar el gráfico y el botón cuando se desactiva el checkbox
+              const chartContainer = document.getElementById('peee-chart-container');
+              const btnReabrirGrafico = document.getElementById('btn-reabrir-grafico-peee');
+              if (chartContainer) {
+                chartContainer.style.display = 'none';
+              }
+              if (btnReabrirGrafico) {
+                btnReabrirGrafico.style.display = 'none';
+              }
             }
           }
         });
         return;
+      }
+
+      // Botón para cerrar el gráfico PEEE
+      const closePeeeChart = document.getElementById('close-peee-chart');
+      const btnReabrirGrafico = document.getElementById('btn-reabrir-grafico-peee');
+      
+      if (closePeeeChart) {
+        closePeeeChart.addEventListener('click', () => {
+          const chartContainer = document.getElementById('peee-chart-container');
+          if (chartContainer) {
+            chartContainer.style.display = 'none';
+          }
+          // Mostrar el botón flotante para reabrir
+          if (btnReabrirGrafico) {
+            btnReabrirGrafico.style.display = 'flex';
+          }
+        });
+      }
+
+      // Botón flotante para reabrir el gráfico PEEE
+      if (btnReabrirGrafico) {
+        btnReabrirGrafico.addEventListener('click', () => {
+          const chartContainer = document.getElementById('peee-chart-container');
+          if (chartContainer) {
+            chartContainer.style.display = 'flex';
+          }
+          // Ocultar el botón flotante
+          btnReabrirGrafico.style.display = 'none';
+        });
       }
 
       // Special handling for education layers (independent layers)
@@ -2305,6 +2359,296 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     console.log('✅ Street search initialized');
+  }
+
+  // ========================================
+  // FUNCIÓN PARA MOSTRAR GRÁFICO PEEE
+  // ========================================
+  async function mostrarGraficoPEEE() {
+    console.log('🎨 Mostrando gráfico PEEE...');
+    
+    const chartContainer = document.getElementById('peee-chart-container');
+    const canvas = document.getElementById('peee-chart');
+    const infoDiv = document.getElementById('peee-chart-info');
+    const btnReabrirGrafico = document.getElementById('btn-reabrir-grafico-peee');
+    
+    if (!chartContainer || !canvas || !infoDiv) {
+      console.error('❌ No se encontraron los elementos del gráfico');
+      return;
+    }
+
+    // Mostrar el contenedor y ocultar el botón flotante
+    chartContainer.style.display = 'flex';
+    if (btnReabrirGrafico) {
+      btnReabrirGrafico.style.display = 'none';
+    }
+
+    // Función para convertir coordenadas UTM19S a WGS84
+    function convertUTM19SToWGS84(easting, northing) {
+      const a = 6378137.0;
+      const f = 1 / 298.257223563;
+      const k0 = 0.9996;
+      const E0 = 500000;
+      const N0 = 10000000;
+      const e2 = 2 * f - f * f;
+      const lambda0 = -69 * Math.PI / 180;
+      
+      const x = easting - E0;
+      const y = northing - N0;
+      
+      const M = y / k0;
+      const mu = M / (a * (1 - e2/4 - 3*e2*e2/64 - 5*e2*e2*e2/256));
+      
+      const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
+      const phi1 = mu + (3*e1/2 - 27*e1*e1*e1/32) * Math.sin(2*mu) 
+                   + (21*e1*e1/16 - 55*e1*e1*e1*e1/32) * Math.sin(4*mu)
+                   + (151*e1*e1*e1/96) * Math.sin(6*mu);
+      
+      const C1 = e2 * Math.cos(phi1) * Math.cos(phi1) / (1 - e2);
+      const T1 = Math.tan(phi1) * Math.tan(phi1);
+      const N1 = a / Math.sqrt(1 - e2 * Math.sin(phi1) * Math.sin(phi1));
+      const R1 = a * (1 - e2) / Math.pow(1 - e2 * Math.sin(phi1) * Math.sin(phi1), 1.5);
+      const D = x / (N1 * k0);
+      
+      const phi = phi1 - (N1 * Math.tan(phi1) / R1) * (D*D/2 - (5 + 3*T1 + 10*C1 - 4*C1*C1 - 9*e2) * D*D*D*D/24);
+      const lambda = lambda0 + (D - (1 + 2*T1 + C1) * D*D*D/6 + (5 - 2*C1 + 28*T1 - 3*C1*C1) * D*D*D*D*D/120) / Math.cos(phi1);
+      
+      return [lambda * 180 / Math.PI, phi * 180 / Math.PI];
+    }
+
+    try {
+      // Cargar datos
+      const [peee2024, peee2025, sectores] = await Promise.all([
+        fetch('datos/pee2024.geojson').then(r => r.json()),
+        fetch('datos/peee2025.geojson').then(r => r.json()),
+        fetch('datos/sectores.geojson').then(r => r.json())
+      ]);
+
+      console.log('✅ Datos cargados:', peee2024.features.length, 'puntos 2024,', peee2025.features.length, 'puntos 2025');
+
+      // Inicializar contadores por sector
+      const conteoSectores = {};
+      sectores.features.forEach(sector => {
+        const nombreSector = sector.properties.Name;
+        const numeroSector = nombreSector.replace('SECTOR ', '').trim();
+        conteoSectores[numeroSector] = { '2024': 0, '2025': 0 };
+      });
+
+      let fueraDeSectores2024 = 0;
+      let fueraDeSectores2025 = 0;
+
+      // Procesar PEEE 2024 (coordenadas UTM)
+      peee2024.features.forEach(feature => {
+        const [easting, northing] = feature.geometry.coordinates;
+        const [lon, lat] = convertUTM19SToWGS84(easting, northing);
+        const punto = turf.point([lon, lat]);
+        
+        let encontrado = false;
+        for (const sector of sectores.features) {
+          if (turf.booleanPointInPolygon(punto, sector)) {
+            const nombreSector = sector.properties.Name;
+            const numeroSector = nombreSector.replace('SECTOR ', '').trim();
+            conteoSectores[numeroSector]['2024']++;
+            encontrado = true;
+            break;
+          }
+        }
+        
+        if (!encontrado) {
+          fueraDeSectores2024++;
+        }
+      });
+
+      // Procesar PEEE 2025 (coordenadas WGS84)
+      peee2025.features.forEach(feature => {
+        const [lon, lat] = feature.geometry.coordinates;
+        const punto = turf.point([lon, lat]);
+        
+        let encontrado = false;
+        for (const sector of sectores.features) {
+          if (turf.booleanPointInPolygon(punto, sector)) {
+            const nombreSector = sector.properties.Name;
+            const numeroSector = nombreSector.replace('SECTOR ', '').trim();
+            conteoSectores[numeroSector]['2025']++;
+            encontrado = true;
+            break;
+          }
+        }
+        
+        if (!encontrado) {
+          fueraDeSectores2025++;
+        }
+      });
+
+      // Ordenar sectores numéricamente
+      const sectoresOrdenados = Object.keys(conteoSectores)
+        .sort((a, b) => parseInt(a) - parseInt(b));
+
+      const datos2024 = sectoresOrdenados.map(s => conteoSectores[s]['2024']);
+      const datos2025 = sectoresOrdenados.map(s => conteoSectores[s]['2025']);
+      const labels = sectoresOrdenados.map(s => `Sector ${s}`);
+
+      // Calcular totales
+      const total2024 = datos2024.reduce((a, b) => a + b, 0);
+      const total2025 = datos2025.reduce((a, b) => a + b, 0);
+      const totalGeneral = total2024 + total2025;
+      const totalFuera = fueraDeSectores2024 + fueraDeSectores2025;
+
+      // Actualizar info
+      infoDiv.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 15px;">
+          <div style="text-align: center;">
+            <div style="font-size: 1.8em; font-weight: bold; color: #fb923c;">${total2024}</div>
+            <div style="font-size: 0.85em; color: #6b7280;">Kits 2024</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 1.8em; font-weight: bold; color: #166534;">${total2025}</div>
+            <div style="font-size: 0.85em; color: #6b7280;">Kits 2025</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 1.8em; font-weight: bold; color: #059669;">${totalGeneral}</div>
+            <div style="font-size: 0.85em; color: #6b7280;">Total Kits</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 1.8em; font-weight: bold; color: #dc2626;">${totalFuera}</div>
+            <div style="font-size: 0.85em; color: #6b7280;">Fuera de Sectores</div>
+          </div>
+        </div>
+        <div style="font-size: 0.9em; color: #6b7280;">
+          <strong>ℹ️ Kits Fuera de Sectores:</strong> Corresponde a kits entregados en direcciones fuera de los límites de los 18 sectores de Puente Alto.
+        </div>
+      `;
+
+      // Destruir gráfico anterior si existe
+      if (window.peeeChartInstance) {
+        window.peeeChartInstance.destroy();
+      }
+
+      // Crear gráfico
+      const ctx = canvas.getContext('2d');
+      window.peeeChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Kits 2024',
+              data: datos2024,
+              backgroundColor: '#fb923c',
+              borderColor: '#ea580c',
+              borderWidth: 2,
+              borderRadius: 0,
+              barThickness: 'flex',
+              maxBarThickness: 60
+            },
+            {
+              label: 'Kits 2025',
+              data: datos2025,
+              backgroundColor: '#166534',
+              borderColor: '#14532d',
+              borderWidth: 2,
+              borderRadius: 0,
+              barThickness: 'flex',
+              maxBarThickness: 60
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Distribución de Kits PEEE por Sector (Total: ' + totalGeneral + ' kits)',
+              font: {
+                size: 16,
+                weight: 'bold'
+              },
+              padding: 15
+            },
+            legend: {
+              display: true,
+              position: 'top',
+              labels: {
+                usePointStyle: true,
+                padding: 15,
+                font: {
+                  size: 13
+                }
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              padding: 12,
+              titleFont: {
+                size: 14
+              },
+              bodyFont: {
+                size: 13
+              },
+              callbacks: {
+                afterBody: function(context) {
+                  const index = context[0].dataIndex;
+                  const total = datos2024[index] + datos2025[index];
+                  return '\nTotal: ' + total + ' kits';
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                stepSize: 50,
+                font: {
+                  size: 11
+                }
+              },
+              title: {
+                display: true,
+                text: 'Cantidad de Kits',
+                font: {
+                  size: 13,
+                  weight: 'bold'
+                }
+              },
+              grid: {
+                color: 'rgba(0, 0, 0, 0.05)'
+              }
+            },
+            x: {
+              ticks: {
+                font: {
+                  size: 11,
+                  weight: 'bold'
+                }
+              },
+              title: {
+                display: true,
+                text: 'Sectores de Puente Alto',
+                font: {
+                  size: 13,
+                  weight: 'bold'
+                }
+              },
+              grid: {
+                display: false
+              }
+            }
+          },
+          interaction: {
+            mode: 'index',
+            intersect: false
+          }
+        }
+      });
+
+      console.log('✅ Gráfico PEEE creado correctamente');
+
+    } catch (error) {
+      console.error('❌ Error al crear gráfico PEEE:', error);
+      infoDiv.innerHTML = `<div style="color: #dc2626; text-align: center;">❌ Error al cargar los datos: ${error.message}</div>`;
+    }
   }
 
   console.log('✅ Visor completamente inicializado');
