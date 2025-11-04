@@ -1630,15 +1630,29 @@ html, body {
 .data-table tbody td {
 	padding: 8px 10px;
 	border-bottom: 1px solid #f1f5f9;
+	vertical-align: top;
+	white-space: normal;
+	overflow-wrap: anywhere;
+	word-break: break-word;
 }
 .data-table tbody tr:nth-child(odd) td {
 	background: #fafafa;
 }
 
+/* Indicador a la izquierda flexible; valores a la derecha alineados */
+#censoTableContainer .data-table td:first-child {
+	width: 70%;
+}
+#censoTableContainer .data-table td:last-child {
+	text-align: right;
+	white-space: nowrap;
+}
+
 /* Panel Censo: hacer que el área de contenido desborde con scroll */
 #censoPanel .villas-list-content {
-	max-height: 60vh;
+	max-height: 72vh;
 	overflow-y: auto;
+	padding-bottom: 8px;
 }
 
 #censoPanel .villas-list-content::-webkit-scrollbar {

@@ -2059,7 +2059,8 @@ document.addEventListener('DOMContentLoaded', function() {
     'Fecundidad': '#db2777',                // fucsia
     'Vivienda y servicios básicos': '#06b6d4', // cian
     'Inmigración': '#22c55e',               // verde
-    'Discapacidad': '#8b5cf6'               // morado
+    'Discapacidad': '#8b5cf6',              // morado
+    'Educación': '#1d4ed8'                  // azul fuerte
   };
   // Colores pastel (relleno polígono y encabezado tabla)
   const CENSO_PASTEL_COLORS = {
@@ -2068,7 +2069,8 @@ document.addEventListener('DOMContentLoaded', function() {
     'Fecundidad': '#fbcfe8',                // fuchsia-200
     'Vivienda y servicios básicos': '#bae6fd', // cyan-200
     'Inmigración': '#bbf7d0',               // green-200
-    'Discapacidad': '#ddd6fe'               // violet-200
+    'Discapacidad': '#ddd6fe',              // violet-200
+    'Educación': '#dbeafe'                  // blue-200
   };
 
   let censoDataCache = null;   // Array de objetos del CSV
@@ -2201,7 +2203,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     const cleanRows = dataRows.filter(r => !['CUT','COMUNA','CUT '].includes((r.Indicador||'').toUpperCase()));
     const rowsHtml = cleanRows.map(r => `
-      <tr><td style="width:60%; font-weight:600; color:#374151;">${r.Indicador}</td><td style="text-align:right; font-variant-numeric: tabular-nums;">${formatNumberCL(r.Valor, r.Valor)}</td></tr>
+      <tr>
+        <td title="${r.Indicador}" style="font-weight:600; color:#374151;">${r.Indicador}</td>
+        <td style="text-align:right; font-variant-numeric: tabular-nums;">${formatNumberCL(r.Valor, r.Valor)}</td>
+      </tr>
     `).join('');
     cont.innerHTML = `
       <table class="data-table">
@@ -2249,7 +2254,43 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let chartConfig = null;
 
-    // 1) Hombres vs Mujeres
+    // Prioridad por categoría específica
+    // Educación: barras por nivel alcanzado
+    if (!chartConfig && category === 'Educación') {
+      const levelLabels = ['Nunca asistió','Parvularia','Diferencial','Básica','Media','Superior'];
+      const levelRegex = /nivel de educación más alto alcanzado/i;
+      const levels = levelLabels.map(lbl => {
+        const row = dataRows.find(r => levelRegex.test(r.Indicador||'') && (r.Indicador||'').toLowerCase().includes(lbl.toLowerCase()));
+        return row ? Number(String(row.Valor).replace(',', '.')) : null;
+      });
+      if (levels.every(v => v!=null)) {
+        chartConfig = {
+          type: 'bar',
+          data: { labels: levelLabels, datasets: [{ data: levels, backgroundColor: '#60a5fa', borderRadius: 4, maxBarThickness: 36 }] },
+          options: { plugins: { legend: { display: false } }, indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { callback: v => v + '%' } } } }
+        };
+      }
+    }
+
+    // Vivienda: ocupadas vs desocupadas
+    if (!chartConfig && category === 'Vivienda') {
+      const rowO = dataRows.find(r => /viviend[ao]s?\s+ocupad/i.test(r.Indicador||''));
+      const rowD = dataRows.find(r => /viviend[ao]s?\s+desocupad/i.test(r.Indicador||''));
+      if (rowO && rowD) {
+        const vO = Number(String(rowO.Valor).replace(',', '.'));
+        const vD = Number(String(rowD.Valor).replace(',', '.'));
+        chartConfig = {
+          type: 'bar',
+          data: {
+            labels: ['Viviendas ocupadas','Viviendas desocupadas'],
+            datasets: [{ data: [vO, vD], backgroundColor: ['#22c55e','#f97316'], borderRadius: 6, maxBarThickness: 48 }]
+          },
+          options: { plugins: { legend: { display: false } }, indexAxis: 'y', scales: { x: { beginAtZero: true } } }
+        };
+      }
+    }
+
+  // 1) Hombres vs Mujeres (si no hubo gráfico específico)
     const hombres = getVal('hombre');
     const mujeres = getVal('mujer');
     if (hombres != null && mujeres != null) {
@@ -2320,9 +2361,27 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       if (panel) panel.style.display = 'block';
 
-      const all = await loadCensoData();
-  const rows = all.filter(r => r.Categoria === category);
-  renderCensoTable(rows, pastel);
+      let rows = [];
+      if (category === 'Educación') {
+        // Datos estáticos de Educación (faltaban en CSV)
+        rows = [
+          { Categoria: 'Educación', Indicador: 'Años de escolaridad promedio', Valor: '10.4' },
+          { Categoria: 'Educación', Indicador: 'Años de escolaridad promedio - 18 años o más', Valor: '12.3' },
+          { Categoria: 'Educación', Indicador: 'Años de escolaridad promedio - 18 años o más - Hombres', Valor: '12.3' },
+          { Categoria: 'Educación', Indicador: 'Años de escolaridad promedio - 18 años o más - Mujeres', Valor: '12.2' },
+          { Categoria: 'Educación', Indicador: '% nivel de educación más alto alcanzado - Nunca asistió', Valor: '2.6' },
+          { Categoria: 'Educación', Indicador: '% nivel de educación más alto alcanzado - Parvularia', Valor: '4.3' },
+          { Categoria: 'Educación', Indicador: '% nivel de educación más alto alcanzado - Diferencial', Valor: '0.7' },
+          { Categoria: 'Educación', Indicador: '% nivel de educación más alto alcanzado - Básica', Valor: '22.1' },
+          { Categoria: 'Educación', Indicador: '% nivel de educación más alto alcanzado - Media', Valor: '39.2' },
+          { Categoria: 'Educación', Indicador: '% nivel de educación más alto alcanzado - Superior', Valor: '31.0' },
+          { Categoria: 'Educación', Indicador: 'Tasa de alfabetismo de personas de 15 años', Valor: '98.5' }
+        ];
+      } else {
+        const all = await loadCensoData();
+        rows = all.filter(r => r.Categoria === category);
+      }
+      renderCensoTable(rows, pastel);
       tryRenderAutoChart(category, rows);
       // Ajustar vista a la comuna
       if (censoPolygonLayer) {
@@ -2341,7 +2400,8 @@ document.addEventListener('DOMContentLoaded', function() {
     'chk-censo-fecundidad',
     'chk-censo-servicios',
     'chk-censo-inmigracion',
-    'chk-censo-discapacidad'
+    'chk-censo-discapacidad',
+    'chk-censo-educacion'
   ];
   const idToCategory = {
     'chk-censo-poblacion': 'Población',
@@ -2349,7 +2409,8 @@ document.addEventListener('DOMContentLoaded', function() {
     'chk-censo-fecundidad': 'Fecundidad',
     'chk-censo-servicios': 'Vivienda y servicios básicos',
     'chk-censo-inmigracion': 'Inmigración',
-    'chk-censo-discapacidad': 'Discapacidad'
+    'chk-censo-discapacidad': 'Discapacidad',
+    'chk-censo-educacion': 'Educación'
   };
 
   censoCheckboxIds.forEach(id => {
