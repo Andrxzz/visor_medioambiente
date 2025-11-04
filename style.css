@@ -1613,6 +1613,42 @@ html, body {
   color: #4b5563;
 }
 
+/* === Tabla simple para Censo === */
+.data-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+.data-table thead th {
+	text-align: left;
+	background: #f3f4f6;
+	color: #374151;
+	font-weight: 600;
+	padding: 8px 10px;
+	border-bottom: 1px solid #e5e7eb;
+}
+.data-table tbody td {
+	padding: 8px 10px;
+	border-bottom: 1px solid #f1f5f9;
+}
+.data-table tbody tr:nth-child(odd) td {
+	background: #fafafa;
+}
+
+/* Panel Censo: hacer que el área de contenido desborde con scroll */
+#censoPanel .villas-list-content {
+	max-height: 60vh;
+	overflow-y: auto;
+}
+
+#censoPanel .villas-list-content::-webkit-scrollbar {
+	width: 8px;
+}
+#censoPanel .villas-list-content::-webkit-scrollbar-thumb {
+	background: #cbd5e1;
+	border-radius: 4px;
+}
+
 /* Botón flotante para reabrir gráfico PEEE */
 #btn-reabrir-grafico-peee {
   position: absolute;

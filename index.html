@@ -131,6 +131,26 @@
 					<label><input type="checkbox" id="chk-resimple-zona3" /> Zona Licitada 3</label>
 				</details>
 
+				<!-- 6. Censo 2024 - Puente Alto -->
+				<details class="layer-category">
+					<summary>
+						<!-- Censo 2024 -->
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<circle cx="12" cy="12" r="10"></circle>
+							<path d="M12 8v8M8 12h8"></path>
+						</svg>
+						6. Censo 2024 - Puente Alto
+					</summary>
+					<p class="category-subtitle">Indicadores comunales</p>
+					<!-- Subcategorías: solo una activa a la vez -->
+					<label><input type="checkbox" class="chk-censo" id="chk-censo-poblacion" /> Población</label>
+					<label><input type="checkbox" class="chk-censo" id="chk-censo-vivienda" /> Vivienda</label>
+					<label><input type="checkbox" class="chk-censo" id="chk-censo-fecundidad" /> Fecundidad</label>
+					<label><input type="checkbox" class="chk-censo" id="chk-censo-servicios" /> Vivienda y servicios básicos</label>
+					<label><input type="checkbox" class="chk-censo" id="chk-censo-inmigracion" /> Inmigración</label>
+					<label><input type="checkbox" class="chk-censo" id="chk-censo-discapacidad" /> Discapacidad</label>
+				</details>
+
 				<!-- Acerca del Proyecto -->
 				<div class="about-project">
 					<h4>Acerca del Proyecto</h4>
@@ -199,6 +219,23 @@
 			</div>
 			<div id="peee-chart-info" class="chart-info"></div>
 		</div>
+
+			<!-- Panel Censo 2024 -->
+			<div id="censoPanel" class="villas-panel" style="display:none; max-width: 520px;">
+				<div class="villas-panel-top">
+					<h4 id="censoPanelTitle" class="villas-panel-title">Censo 2024 - Puente Alto</h4>
+					<button id="closeCensoPanel" class="villas-panel-close" title="Cerrar">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<line x1="18" y1="6" x2="6" y2="18"></line>
+							<line x1="6" y1="6" x2="18" y2="18"></line>
+						</svg>
+					</button>
+				</div>
+				<div class="villas-list-content" style="padding: 12px 14px;">
+					<canvas id="censoChart" height="180" style="margin-bottom: 10px;"></canvas>
+					<div id="censoTableContainer"></div>
+				</div>
+			</div>
 
 		<!-- Botón flotante para reabrir el gráfico PEEE -->
 		<button id="btn-reabrir-grafico-peee" style="display: none;" title="Abrir gráfico PEEE">

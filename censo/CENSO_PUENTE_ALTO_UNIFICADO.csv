@@ -1,0 +1,66 @@
+﻿Categoria,Indicador,Valor,CUT,Comuna
+Población,CUT,13201,13201,Puente Alto
+Población,Comuna,PUENTE ALTO,13201,Puente Alto
+Población,Población censada,568086,13201,Puente Alto
+Población,Hombres,273928,13201,Puente Alto
+Población,Mujeres,294158,13201,Puente Alto
+Población,Razón hombre - mujer,93.1,13201,Puente Alto
+Población,Promedio de Edad,37,13201,Puente Alto
+Población,Población entre 0 a 14 años,104301,13201,Puente Alto
+Población,Población entre 15 a 64 años,397179,13201,Puente Alto
+Población,Población con 65 años o más,66606,13201,Puente Alto
+Población,Índice de envejecimiento,63.9,13201,Puente Alto
+Vivienda,CUT,13201,13201,Puente Alto
+Vivienda,COMUNA,PUENTE ALTO,13201,Puente Alto
+Vivienda,Viviendas censadas,190374,13201,Puente Alto
+Vivienda,Viviendas ocupadas,185864,13201,Puente Alto
+Vivienda,Viviendas desocupadas,4440,13201,Puente Alto
+Vivienda,Viviendas particulares,190304,13201,Puente Alto
+Vivienda,Viviendas colectivas,70,13201,Puente Alto
+Vivienda,Hogares censados,182855,13201,Puente Alto
+Vivienda,Promedio hogares por vivienda,1,13201,Puente Alto
+Vivienda,Promedio de personas por hogar,3.1,13201,Puente Alto
+Vivienda,Porcentaje hogares unipersonales,14.9,13201,Puente Alto
+Vivienda,Porcentaje de hogares con niños/as,37.7,13201,Puente Alto
+Vivienda,Porcentaje de hogares de personas mayores,8.7,13201,Puente Alto
+Fecundidad,CUT,13201,13201,Puente Alto
+Fecundidad,COMUNA,PUENTE ALTO,13201,Puente Alto
+Fecundidad,Mujeres entre 15 y 49 años,142876,13201,Puente Alto
+Fecundidad,Porcentaje de mujeres entre 15 y 49 años,59.1,13201,Puente Alto
+Fecundidad,Mujeres entre 15 a 49 años con hijos/as,81654,13201,Puente Alto
+Fecundidad,Porcentaje de mujeres entre 15 a 49 años con hijos/as,57.2,13201,Puente Alto
+Fecundidad,Mujeres entre 15 a 49 años sin hijos/as,61222,13201,Puente Alto
+Fecundidad,Porcentaje de mujeres entre 15 a 49 años sin hijos/as,42.8,13201,Puente Alto
+Fecundidad,Razón niño/a - mujer,18.2,13201,Puente Alto
+Fecundidad,Porcentaje de mujeres inmigrantes internacionales entre 15 y 49 años con hijos/as,69.4,13201,Puente Alto
+Vivienda y servicios básicos,CUT,13201,13201,Puente Alto
+Vivienda y servicios básicos,COMUNA,PUENTE ALTO,13201,Puente Alto
+Vivienda y servicios básicos,Viviendas particulares ocupadas con moradores presentes,178007,13201,Puente Alto
+Vivienda y servicios básicos,Viviendas con hacinamiento,9493,13201,Puente Alto
+Vivienda y servicios básicos,Viviendas con hacinamiento crítico,805,13201,Puente Alto
+Vivienda y servicios básicos,Viviendas irrecuperables,1251,13201,Puente Alto
+Vivienda y servicios básicos,Porcentaje de viviendas con acceso a red pública para consumo de agua,99.4,13201,Puente Alto
+Vivienda y servicios básicos,Porcentaje de viviendas con acceso a energía eléctrica,99.9,13201,Puente Alto
+Vivienda y servicios básicos,Porcentaje de hogares con acceso a internet,95.9,13201,Puente Alto
+Vivienda y servicios básicos,Porcentaje de viviendas con 2 hogares o más,2.34,13201,Puente Alto
+Inmigración,CUT,13201,13201,Puente Alto
+Inmigración,COMUNA,PUENTE ALTO,13201,Puente Alto
+Inmigración,Porcentaje de la población inmigrante internacional,5.3,13201,Puente Alto
+Inmigración,Razón hombre-mujer de la población inmigrante internacional,94.1,13201,Puente Alto
+Inmigración,Índice de envejecimiento de la población inmigrante internacional,26.8,13201,Puente Alto
+Inmigración,Promedio de edad de la población inmigrante internacional,33.9,13201,Puente Alto
+Discapacidad,CUT,13201,13201,Puente Alto
+Discapacidad,COMUNA,PUENTE ALTO,13201,Puente Alto
+Discapacidad,Población con discapacidad,58502,13201,Puente Alto
+Discapacidad,Porcentaje población con discapacidad,10.9,13201,Puente Alto
+Discapacidad,Razón hombre-mujer - población con discapacidad,68.7,13201,Puente Alto
+Discapacidad,Promedio de edad - población con discapacidad,52.8,13201,Puente Alto
+Discapacidad,% de personas de 0 a 14 años con discapacidad,8.8,13201,Puente Alto
+Discapacidad,% de personas de 15 a 64 años con discapacidad,55.5,13201,Puente Alto
+Discapacidad,% de personas de 65 años o más con discapacidad,35.6,13201,Puente Alto
+Discapacidad,Dificultad para ver,24589,13201,Puente Alto
+Discapacidad,Dificultad para oír,10754,13201,Puente Alto
+Discapacidad,Dificultad para caminar,25574,13201,Puente Alto
+Discapacidad,Dificultad para concentrarse,16475,13201,Puente Alto
+Discapacidad,Población con dificultad en cuidado personal,7546,13201,Puente Alto
+Discapacidad,Población con dificultad para comunicarse,5293,13201,Puente Alto

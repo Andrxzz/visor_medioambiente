@@ -2047,6 +2047,335 @@ document.addEventListener('DOMContentLoaded', function() {
       console.log('🗑️ Marcador de dirección eliminado');
     }
   };
+
+  // ============================================
+  // CENSO 2024 - PUENTE ALTO
+  // ============================================
+  const CENSO_FILE = 'censo/CENSO_PUENTE_ALTO_UNIFICADO.csv';
+  // Colores fuertes (texto/título)
+  const CENSO_CATEGORY_COLORS = {
+    'Población': '#f97316',                 // naranjo
+    'Vivienda': '#2563eb',                  // azul
+    'Fecundidad': '#db2777',                // fucsia
+    'Vivienda y servicios básicos': '#06b6d4', // cian
+    'Inmigración': '#22c55e',               // verde
+    'Discapacidad': '#8b5cf6'               // morado
+  };
+  // Colores pastel (relleno polígono y encabezado tabla)
+  const CENSO_PASTEL_COLORS = {
+    'Población': '#fed7aa',                 // orange-200
+    'Vivienda': '#bfdbfe',                  // blue-200
+    'Fecundidad': '#fbcfe8',                // fuchsia-200
+    'Vivienda y servicios básicos': '#bae6fd', // cyan-200
+    'Inmigración': '#bbf7d0',               // green-200
+    'Discapacidad': '#ddd6fe'               // violet-200
+  };
+
+  let censoDataCache = null;   // Array de objetos del CSV
+  let censoPolygonLayer = null; // L.geoJSON del polígono de la comuna
+  let censoChartInstance = null; // Instancia Chart.js
+
+  function parseCSV(text) {
+    const rows = text.trim().split(/\r?\n/).map(r => r.split(','));
+    const headers = rows.shift().map(h => h.trim());
+    return rows.map(r => Object.fromEntries(r.map((v, i) => [headers[i], v.trim()])));
+  }
+
+  async function loadCensoData() {
+    if (censoDataCache) return censoDataCache;
+    const res = await fetch(CENSO_FILE);
+    if (!res.ok) throw new Error('No se pudo cargar el CSV de Censo');
+    const text = await res.text();
+    censoDataCache = parseCSV(text);
+    return censoDataCache;
+  }
+
+  async function ensureCensoPolygon(color) {
+    // Cargar y convertir el GeoJSON de la comuna (el archivo viene en EPSG:3857)
+    const rawGeo = await fetch('datos/puentealto.geojson').then(r => r.json());
+
+    // Función de utilidad: convierte un par [x,y] de EPSG:3857 (metros) a [lng,lat] WGS84
+    const mercatorToWgs84 = (coord) => {
+      const x = coord[0];
+      const y = coord[1];
+      // Si ya parece estar en grados, no convertir
+      if (Math.abs(x) <= 180 && Math.abs(y) <= 90) return [x, y];
+      const lng = (x / 20037508.34) * 180;
+      const lat = (Math.atan(Math.exp((y / 20037508.34) * Math.PI)) / (Math.PI / 4) - 1) * 90;
+      return [lng, lat];
+    };
+
+    const convertGeometry = (geometry) => {
+      if (!geometry) return geometry;
+      const type = geometry.type;
+      const coords = geometry.coordinates;
+      if (type === 'MultiPolygon') {
+        return {
+          type,
+          coordinates: coords.map(poly => poly.map(ring => ring.map(mercatorToWgs84)))
+        };
+      } else if (type === 'Polygon') {
+        return {
+          type,
+          coordinates: coords.map(ring => ring.map(mercatorToWgs84))
+        };
+      } else if (type === 'MultiLineString') {
+        return {
+          type,
+          coordinates: coords.map(line => line.map(mercatorToWgs84))
+        };
+      } else if (type === 'LineString') {
+        return {
+          type,
+          coordinates: coords.map(mercatorToWgs84)
+        };
+      } else if (type === 'MultiPoint') {
+        return { type, coordinates: coords.map(mercatorToWgs84) };
+      } else if (type === 'Point') {
+        return { type, coordinates: mercatorToWgs84(coords) };
+      }
+      return geometry;
+    };
+
+    const converted = {
+      type: 'FeatureCollection',
+      features: (rawGeo.features || []).map(f => ({
+        ...f,
+        geometry: convertGeometry(f.geometry)
+      }))
+    };
+
+    // Si existe una capa previa, reemplazarla para asegurar geometría correcta
+    if (censoPolygonLayer && map.hasLayer(censoPolygonLayer)) {
+      map.removeLayer(censoPolygonLayer);
+    }
+    censoPolygonLayer = L.geoJSON(converted, {
+      style: {
+        color: '#374151',
+        weight: 2,
+        fillColor: color,
+        fillOpacity: 0.35
+      }
+    }).addTo(map);
+
+    // Ajustar SIEMPRE a los límites de la comuna
+    try {
+      const b = censoPolygonLayer.getBounds();
+      if (b && b.isValid && b.isValid()) {
+        map.fitBounds(b, { padding: [20, 20] });
+        if (map.getZoom() < 10) map.setView([-33.615, -70.575], 12);
+      } else {
+        map.setView([-33.615, -70.575], 12);
+      }
+    } catch (e) {
+      map.setView([-33.615, -70.575], 12);
+    }
+  }
+
+  function hideCensoPanel() {
+    const panel = document.getElementById('censoPanel');
+    if (panel) panel.style.display = 'none';
+    if (censoChartInstance) {
+      censoChartInstance.destroy();
+      censoChartInstance = null;
+    }
+    if (censoPolygonLayer && map.hasLayer(censoPolygonLayer)) {
+      map.removeLayer(censoPolygonLayer);
+    }
+  }
+
+  function formatNumberCL(val, orig) {
+    if (val === null || val === undefined || val === '' || isNaN(Number(val))) return orig ?? val;
+    const num = Number(String(val).replace(',', '.'));
+    const origHasDecimal = String(orig ?? val).includes('.') || String(orig ?? val).includes(',');
+    const opts = origHasDecimal ? { minimumFractionDigits: 1, maximumFractionDigits: 2 } : { maximumFractionDigits: 0 };
+    return num.toLocaleString('es-CL', opts);
+  }
+
+  function renderCensoTable(dataRows, color) {
+    const cont = document.getElementById('censoTableContainer');
+    if (!cont) return;
+    if (!dataRows?.length) {
+      cont.innerHTML = '<p>No hay datos para esta categoría.</p>';
+      return;
+    }
+    const cleanRows = dataRows.filter(r => !['CUT','COMUNA','CUT '].includes((r.Indicador||'').toUpperCase()));
+    const rowsHtml = cleanRows.map(r => `
+      <tr><td style="width:60%; font-weight:600; color:#374151;">${r.Indicador}</td><td style="text-align:right; font-variant-numeric: tabular-nums;">${formatNumberCL(r.Valor, r.Valor)}</td></tr>
+    `).join('');
+    cont.innerHTML = `
+      <table class="data-table">
+        <thead><tr style="background:${color}; color:white;"><th>Indicador</th><th style="text-align:right;">Valor</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    `;
+  }
+
+  // Plugin para dibujar % dentro de cada porción del doughnut
+  const percentInsidePlugin = {
+    id: 'percentInside',
+    afterDatasetsDraw(chart, args, pluginOptions) {
+      const { ctx } = chart;
+      chart.data.datasets.forEach((dataset, i) => {
+        const meta = chart.getDatasetMeta(i);
+        if (!meta || meta.type !== 'doughnut') return;
+        const total = (dataset.data || []).reduce((a, b) => a + Number(b || 0), 0);
+        meta.data.forEach((arc, idx) => {
+          const val = Number(dataset.data[idx] || 0);
+          if (!total || val <= 0) return;
+          const p = Math.round((val / total) * 100);
+          const pos = arc.tooltipPosition();
+          ctx.save();
+          ctx.fillStyle = '#111827';
+          ctx.font = 'bold 12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(p + '%', pos.x, pos.y);
+          ctx.restore();
+        });
+      });
+    }
+  };
+
+  function tryRenderAutoChart(category, dataRows) {
+    const canvas = document.getElementById('censoChart');
+    if (!canvas) return;
+    if (censoChartInstance) { censoChartInstance.destroy(); censoChartInstance = null; }
+
+    const getVal = (label) => {
+      const row = dataRows.find(r => (r.Indicador||'').toLowerCase().includes(label));
+      return row ? Number(String(row.Valor).replace(',', '.')) : null;
+    };
+
+    let chartConfig = null;
+
+    // 1) Hombres vs Mujeres
+    const hombres = getVal('hombre');
+    const mujeres = getVal('mujer');
+    if (hombres != null && mujeres != null) {
+      chartConfig = {
+        type: 'doughnut',
+        data: {
+          labels: ['Hombres','Mujeres'],
+          datasets: [{ data: [hombres, mujeres], backgroundColor: ['#38bdf8','#fb7185'], borderWidth: 0 }]
+        },
+        options: { plugins: { legend: { position: 'bottom' } } },
+        plugins: [percentInsidePlugin]
+      };
+    }
+
+    // 2) Grupos etarios
+    if (!chartConfig) {
+      const a0_14 = getVal('0 a 14');
+      const a15_64 = getVal('15 a 64');
+      const a65 = getVal('65');
+      if (a0_14!=null && a15_64!=null && a65!=null) {
+        chartConfig = {
+          type: 'doughnut',
+          data: {
+            labels: ['0-14','15-64','65+'],
+            datasets: [{ data: [a0_14, a15_64, a65], backgroundColor: ['#60a5fa','#34d399','#f59e0b'], borderWidth: 0 }]
+          },
+          options: { plugins: { legend: { position: 'bottom' } } },
+          plugins: [percentInsidePlugin]
+        };
+      }
+    }
+
+    // 3) Discapacidades (barras)
+    if (!chartConfig && category === 'Discapacidad') {
+      const difs = dataRows.filter(r => /Dificultad|cuidado|comunicarse/i.test(r.Indicador||''));
+      if (difs.length >= 3) {
+        chartConfig = {
+          type: 'bar',
+          data: {
+            labels: difs.map(r => r.Indicador),
+            datasets: [{ data: difs.map(r => Number(String(r.Valor).replace(',', '.'))), backgroundColor: '#8b5cf6', borderRadius: 0, maxBarThickness: 40 }]
+          },
+          options: { plugins: { legend: { display: false } }, indexAxis: 'y', scales: { x: { beginAtZero: true } } }
+        };
+      }
+    }
+
+    if (chartConfig) {
+      const ctx = canvas.getContext('2d');
+      censoChartInstance = new Chart(ctx, chartConfig);
+      canvas.style.display = 'block';
+    } else {
+      canvas.style.display = 'none';
+    }
+  }
+
+  async function mostrarCensoCategoria(category) {
+    try {
+      const strong = CENSO_CATEGORY_COLORS[category] || '#059669';
+      const pastel = CENSO_PASTEL_COLORS[category] || '#e5f3ee';
+      await ensureCensoPolygon(pastel);
+
+      const panel = document.getElementById('censoPanel');
+      const title = document.getElementById('censoPanelTitle');
+      if (title) { 
+        title.textContent = `Censo 2024 - ${category}`; 
+        title.style.color = strong;
+      }
+      if (panel) panel.style.display = 'block';
+
+      const all = await loadCensoData();
+  const rows = all.filter(r => r.Categoria === category);
+  renderCensoTable(rows, pastel);
+      tryRenderAutoChart(category, rows);
+      // Ajustar vista a la comuna
+      if (censoPolygonLayer) {
+        try { map.fitBounds(censoPolygonLayer.getBounds(), { padding: [20,20] }); } catch (e) {}
+      }
+    } catch (e) {
+      console.error('Error mostrando Censo:', e);
+      alert('No se pudo cargar datos de Censo');
+    }
+  }
+
+  // Manejo de subcategorías Censo (exclusivas)
+  const censoCheckboxIds = [
+    'chk-censo-poblacion',
+    'chk-censo-vivienda',
+    'chk-censo-fecundidad',
+    'chk-censo-servicios',
+    'chk-censo-inmigracion',
+    'chk-censo-discapacidad'
+  ];
+  const idToCategory = {
+    'chk-censo-poblacion': 'Población',
+    'chk-censo-vivienda': 'Vivienda',
+    'chk-censo-fecundidad': 'Fecundidad',
+    'chk-censo-servicios': 'Vivienda y servicios básicos',
+    'chk-censo-inmigracion': 'Inmigración',
+    'chk-censo-discapacidad': 'Discapacidad'
+  };
+
+  censoCheckboxIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.checked = false;
+    el.addEventListener('change', async (ev) => {
+      if (ev.target.checked) {
+        // Desactivar los otros
+        censoCheckboxIds.filter(x => x !== id).forEach(x => {
+          const o = document.getElementById(x);
+          if (o) o.checked = false;
+        });
+        await mostrarCensoCategoria(idToCategory[id]);
+      } else {
+        hideCensoPanel();
+      }
+    });
+  });
+
+  const closeCensoBtn = document.getElementById('closeCensoPanel');
+  if (closeCensoBtn) closeCensoBtn.addEventListener('click', () => {
+    // Uncheck all censo checkboxes
+    censoCheckboxIds.forEach(id => { const c = document.getElementById(id); if (c) c.checked = false; });
+    hideCensoPanel();
+  });
   
   function buscarCalle(query) {
     if (!query || query.trim().length < 2) {
