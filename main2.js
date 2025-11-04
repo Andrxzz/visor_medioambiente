@@ -19,22 +19,6 @@ document.addEventListener('DOMContentLoaded', function() {
   let map = null;
   const layers = {}; // Store all layers by name
 
-  // Sample data for each layer type (centered around Puente Alto)
-  // Empty arrays - ready for real data loading
-  const sampleData = {
-    intervenciones_comunales: [],
-    peee_2024: [],
-    peee_2025: [],
-    peee_2024_2025: [],
-    puntos_limpios: [],
-    puntos_verdes_comunidad: [],
-    puntos_verdes_internos: [],
-    sectores: [],
-    unidades_vecinales: [],
-    villas: [],
-    sedes_sociales: []
-  };
-
   // Layer colors / styles for new groups
   const layerStyles = {
     intervenciones_comunales: { fillColor: '#2c7bb6', color: '#1b4f72' },
@@ -60,36 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 
 
-  function showInfo(props) {
-    const panel = document.getElementById('infoPanel');
-    if (!panel) return;
-    if (!props) { 
-      panel.innerHTML = '<h4>Información</h4><p>Seleccione un elemento en el mapa.</p>'; 
-      return; 
-    }
-    const date = props.fecha ? new Date(props.fecha).toLocaleDateString('es-CL') : '-';
-    const kitsText = Array.isArray(props.kits) ? props.kits.join(', ') : '-';
-    panel.innerHTML = `
-      <h4>${props.name || 'Sin nombre'}</h4>
-      <p><strong>Tipo:</strong> ${props.tipo || '-'}</p>
-      <p><strong>Fecha:</strong> ${date}</p>
-      <p><strong>Kits:</strong> ${kitsText}</p>
-      <p><strong>ID:</strong> ${props.id || '-'}</p>
-    `;
-  }
 
-  function onEachFeature(feature, layer) {
-    const p = feature.properties || {};
-    const kitsText = Array.isArray(p.kits) ? p.kits.join(', ') : '-';
-    const html = `
-      <b>${p.name || 'Sin nombre'}</b><br/>
-      Tipo: ${p.tipo || '-'}<br/>
-      Fecha: ${p.fecha || '-'}<br/>
-      Kits: ${kitsText}
-    `;
-    layer.bindPopup(html);
-    layer.on('click', () => showInfo(p));
-  }
 
   function createMap() {
     // destroy existing
@@ -1556,119 +1511,12 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     cargarReSimple();
 
-    // Create all layers
-    Object.keys(sampleData).forEach(layerName => {
-      const style = layerStyles[layerName] || { fillColor: '#888', color: '#555' };
-      layers[layerName] = L.geoJSON(null, {
-        pointToLayer: (feature, latlng) => L.circleMarker(latlng, {
-          radius: 7,
-          fillColor: style.fillColor,
-          color: style.color,
-          weight: 2,
-          fillOpacity: 0.8
-        }),
-        onEachFeature: onEachFeature
-      });
-      
-      // Add sample data to layer
-      layers[layerName].addData({
-        type: 'FeatureCollection',
-        features: sampleData[layerName]
-      });
-      
-      // Add to map by default
-      layers[layerName].addTo(map);
-    });
-
     setTimeout(() => { try { map.invalidateSize(); } catch (e) {} }, 200);
   }
 
 
-  function applyFilters() {
-    const tipo = document.getElementById('tipoIntervencion').value;
-    const kitsFilter = document.getElementById('kitsSelect') ? document.getElementById('kitsSelect').value : 'all';
-    
-    // Reapply data to all layers with filters
-    Object.keys(sampleData).forEach(layerName => {
-      if (!layers[layerName]) return;
-      
-      layers[layerName].clearLayers();
-      
-      const filtered = sampleData[layerName].filter(f => {
-        const props = f.properties || {};
-        
-        // Filter by tipo
-        if (tipo !== 'all' && props.tipo !== tipo) return false;
-        
-        // Filter by kits
-        if (kitsFilter === 'all') return true;
-        if (kitsFilter === '2024_2025') {
-          return Array.isArray(props.kits) && (props.kits.includes('2024') || props.kits.includes('2025'));
-        }
-        return Array.isArray(props.kits) && props.kits.includes(kitsFilter);
-      });
-      
-      if (filtered.length > 0) {
-        layers[layerName].addData({
-          type: 'FeatureCollection',
-          features: filtered
-        });
-      }
-    });
-  }
-
-  function doSearch() {
-    const q = document.getElementById('search').value.trim().toLowerCase();
-    if (!q) {
-      alert('Introduce texto para buscar');
-      return;
-    }
-    
-    let found = null;
-    
-    // Search across all layer data
-    Object.keys(sampleData).forEach(layerName => {
-      sampleData[layerName].forEach(f => {
-        if ((f.properties.name || '').toLowerCase().includes(q)) {
-          found = f;
-        }
-      });
-    });
-    
-    if (found && map) {
-      const coords = found.geometry.coordinates.slice().reverse();
-      map.setView(coords, 17);
-      L.popup()
-        .setLatLng(coords)
-        .setContent(`<b>${found.properties.name}</b>`)
-        .openOn(map);
-      showInfo(found.properties);
-    } else {
-      alert('No se encontraron resultados para: ' + q);
-    }
-  }
-
   // Wire UI - Ya no necesita DOMContentLoaded porque ya estamos dentro de uno
   createMap();
-  
-  // Search button
-  const btnSearch = document.getElementById('btnSearch');
-  if (btnSearch) btnSearch.addEventListener('click', doSearch);
-  
-  // Enter key for search
-  const searchInput = document.getElementById('search');
-  if (searchInput) {
-    searchInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') doSearch();
-    });
-  }
-    
-    // Filter dropdowns
-    const tipoSelect = document.getElementById('tipoIntervencion');
-    if (tipoSelect) tipoSelect.addEventListener('change', applyFilters);
-    
-    const kitsSelect = document.getElementById('kitsSelect');
-    if (kitsSelect) kitsSelect.addEventListener('change', applyFilters);
     
     // Layer checkboxes: new sidebar IDs -> layer keys
     const layerCheckboxes = {

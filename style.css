@@ -371,36 +371,6 @@ html, body {
 	box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1);
 }
 
-/* === Panel de información === */
-.info-panel {
-	margin-top: 28px;
-	padding: 18px;
-	background: var(--blanco);
-	border: 1px solid var(--gris-200);
-	border-radius: 12px;
-	box-shadow: var(--sombra-sm);
-	transition: all 0.2s;
-}
-
-.info-panel:hover {
-	border-color: var(--verde-principal);
-	box-shadow: 0 4px 12px rgba(5, 150, 105, 0.08);
-}
-
-.info-panel h4 {
-	margin: 0 0 12px 0;
-	font-size: 1rem;
-	color: var(--gris-900);
-	font-weight: 700;
-}
-
-.info-panel p {
-	margin: 0;
-	font-size: 0.9rem;
-	color: var(--gris-600);
-	line-height: 1.6;
-}
-
 /* === Acerca del Proyecto === */
 .about-project {
 	margin-top: 20px;
