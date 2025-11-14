@@ -315,6 +315,47 @@ html, body {
 	border-bottom: none;
 }
 
+/* === Logo de fondo para ReSimple === */
+.layer-category:has(#chk-resimple-zona1) {
+	position: relative;
+}
+
+.layer-category:has(#chk-resimple-zona1)[open]::before {
+	content: '';
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 120px;
+	height: 120px;
+	background-image: url('Imagenes/LOGO-RESIMPLE-01.png');
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	opacity: 0.08;
+	pointer-events: none;
+	z-index: 0;
+}
+
+.layer-category:has(#chk-resimple-zona1) label {
+	position: relative;
+	z-index: 1;
+}
+
+/* === Estilos para etiquetas de día ReSimple === */
+/* Eliminar TODOS los fondos y bordes de los contenedores de Leaflet */
+.leaflet-marker-icon,
+.leaflet-div-icon,
+.resimple-day-marker {
+	background: none !important;
+	background-color: transparent !important;
+	border: none !important;
+	outline: none !important;
+	box-shadow: none !important;
+	width: auto !important;
+	height: auto !important;
+}
+
 /* === Filtros === */
 .filters {
 	margin-top: 28px;

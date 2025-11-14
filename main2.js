@@ -44,6 +44,125 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 
 
+  // ============================================================================
+  // FUNCIÓN: cargarReSimple()
+  // Carga las zonas de recolección de residuos ReSimple con colores más diferenciados
+  // ============================================================================
+  async function cargarReSimple() {
+    try {
+      const res = await fetch('datos/reismples.geojson');
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      const geojson = await res.json();
+
+      // Paleta de colores MÁS DIFERENCIADOS para los días
+      const dayColors = {
+        'LUNES': '#0ea5e9',      // Azul brillante (Cyan)
+        'MARTES': '#dc2626',     // Rojo intenso
+        'MIÉRCOLES': '#10b981',  // Verde esmeralda
+        'MIERCOLES': '#10b981',  // Variante sin tilde
+        'JUEVES': '#f97316',     // Naranja vibrante
+        'VIERNES': '#8b5cf6',    // Púrpura profundo
+        'SÁBADO': '#eab308',     // Amarillo dorado
+        'SABADO': '#eab308',     // Variante sin tilde
+        'DOMINGO': '#ec4899'     // Rosa magenta
+      };
+
+      // Crear 3 grupos de capas para cada zona licitada
+      const zona1Features = [];
+      const zona2Features = [];
+      const zona3Features = [];
+
+      geojson.features.forEach(feature => {
+        const zonaLicitada = feature.properties.Zonas_licitadas;
+        const dayName = (feature.properties.Name || '').trim().toUpperCase();
+        const color = dayColors[dayName] || '#666666';
+
+        const polygonLayer = L.geoJSON(feature, {
+          style: {
+            fillColor: color,
+            color: color,
+            weight: 2,
+            opacity: 0.8,
+            fillOpacity: 0.4
+          }
+        }).bindPopup(`
+          <div style="font-family: Arial, sans-serif;">
+            <h4 style="margin: 0 0 8px 0; color: ${color}; font-size: 16px;">
+              📅 ${dayName}
+            </h4>
+            <p style="margin: 4px 0;"><strong>Zona Licitada:</strong> ${zonaLicitada}</p>
+          </div>
+        `);
+
+        // Calcular centroide para la etiqueta
+        let centroid = null;
+        if (feature.geometry.type === 'MultiPolygon') {
+          const coords = feature.geometry.coordinates[0][0];
+          const lats = coords.map(c => c[1]);
+          const lngs = coords.map(c => c[0]);
+          const avgLat = lats.reduce((a, b) => a + b, 0) / lats.length;
+          const avgLng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+          centroid = [avgLat, avgLng];
+        } else if (feature.geometry.type === 'Polygon') {
+          const coords = feature.geometry.coordinates[0];
+          const lats = coords.map(c => c[1]);
+          const lngs = coords.map(c => c[0]);
+          const avgLat = lats.reduce((a, b) => a + b, 0) / lats.length;
+          const avgLng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+          centroid = [avgLat, avgLng];
+        }
+
+        // Crear etiqueta del día
+        if (centroid) {
+          const labelIcon = L.divIcon({
+            className: 'resimple-day-marker',
+            html: `<div style="background-color: ${color}; color: white; padding: 6px 10px; border-radius: 4px; 
+                    font-weight: bold; font-size: 12px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                    border: 2px solid white; display: inline-block;">
+                     ${dayName}
+                   </div>`,
+            iconSize: [null, null],
+            iconAnchor: [0, 0]
+          });
+          const labelMarker = L.marker(centroid, { icon: labelIcon });
+
+          // Agrupar según zona licitada
+          if (zonaLicitada === 1) {
+            zona1Features.push(polygonLayer);
+            zona1Features.push(labelMarker);
+          } else if (zonaLicitada === 2) {
+            zona2Features.push(polygonLayer);
+            zona2Features.push(labelMarker);
+          } else if (zonaLicitada === 3) {
+            zona3Features.push(polygonLayer);
+            zona3Features.push(labelMarker);
+          }
+        } else {
+          // Si no hay centroide, solo agregar el polígono
+          if (zonaLicitada === 1) {
+            zona1Features.push(polygonLayer);
+          } else if (zonaLicitada === 2) {
+            zona2Features.push(polygonLayer);
+          } else if (zonaLicitada === 3) {
+            zona3Features.push(polygonLayer);
+          }
+        }
+      });
+
+      // Crear los layer groups
+      layers['resimple_zona1'] = L.layerGroup(zona1Features);
+      layers['resimple_zona2'] = L.layerGroup(zona2Features);
+      layers['resimple_zona3'] = L.layerGroup(zona3Features);
+
+      console.log('✓ ReSimple cargado correctamente con colores diferenciados');
+      console.log(`  - Zona 1: ${zona1Features.length} features`);
+      console.log(`  - Zona 2: ${zona2Features.length} features`);
+      console.log(`  - Zona 3: ${zona3Features.length} features`);
+      console.log('  - Capas disponibles:', Object.keys(layers).filter(k => k.startsWith('resimple')));
+    } catch (error) {
+      console.error('❌ Error cargando ReSimple:', error);
+    }
+  }
 
 
   function createMap() {
@@ -1334,186 +1453,10 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(err => console.error('Error al cargar Educación Ambiental:', err));
     };
     cargarEducacionAmbiental();
-
-    // ======= RESIMPLE: Zonas de Recolección =======
-    const cargarReSimple = () => {
-      fetch('datos/resimples.geojson')
-        .then(response => response.json())
-        .then(data => {
-          console.log('📊 ReSimple data loaded:', data.features.length, 'features');
-          
-          // Agrupar por zona licitada
-          const zonas = {
-            'zona1': {
-              id: 'resimple_zona1',
-              nombre: 'Zona Licitada 1',
-              checkbox: 'chk-resimple-zona1',
-              color: '#3b82f6', // Azul
-              features: []
-            },
-            'zona2': {
-              id: 'resimple_zona2',
-              nombre: 'Zona Licitada 2',
-              checkbox: 'chk-resimple-zona2',
-              color: '#ef4444', // Rojo
-              features: []
-            },
-            'zona3': {
-              id: 'resimple_zona3',
-              nombre: 'Zona Licitada 3',
-              checkbox: 'chk-resimple-zona3',
-              color: '#10b981', // Verde
-              features: []
-            }
-          };
-
-          // Clasificar features por zona
-          data.features.forEach(feature => {
-            const zonaStr = (feature.properties.zonas || '').toLowerCase().trim();
-            
-            if (zonaStr.includes('zona licitada 1')) {
-              zonas.zona1.features.push(feature);
-            } else if (zonaStr.includes('zona licitada 2')) {
-              zonas.zona2.features.push(feature);
-            } else if (zonaStr.includes('zona licitada 3')) {
-              zonas.zona3.features.push(feature);
-            }
-          });
-
-          // Crear capas para cada zona
-          Object.values(zonas).forEach(zona => {
-            if (zona.features.length === 0) return;
-
-            const zonaData = {
-              type: 'FeatureCollection',
-              features: zona.features
-            };
-
-            // Colores específicos por día
-            const coloresPorDia = {
-              'LUNES': '#3b82f6',     // Azul
-              'MARTES': '#8b5cf6',    // Morado
-              'MIÉRCOLES': '#10b981', // Verde
-              'MIERCOLES': '#10b981', // Verde (sin tilde)
-              'JUEVES': '#a855f7',    // Púrpura/Morado
-              'VIERNES': '#f59e0b',   // Amarillo/Naranja
-              'SÁBADO': '#eab308',    // Amarillo
-              'SABADO': '#eab308',    // Amarillo (sin tilde)
-              'DOMINGO': '#ef4444'    // Rojo
-            };
-
-            // Crear capa con etiquetas de días
-            layers[zona.id] = L.layerGroup();
-            
-            // Capa de polígonos con colores por día
-            const polygonLayer = L.geoJSON(zonaData, {
-              style: (feature) => {
-                const dia = (feature.properties.Name || '').trim().toUpperCase();
-                const colorDia = coloresPorDia[dia] || zona.color;
-                
-                return {
-                  fillColor: colorDia,
-                  fillOpacity: 0.3,
-                  color: colorDia,
-                  weight: 2,
-                  opacity: 0.8
-                };
-              },
-              onEachFeature: (feature, layer) => {
-                const props = feature.properties || {};
-                const dia = (props.Name || '').trim();
-                const zonaName = props.zonas || '-';
-                const diaUpper = dia.toUpperCase();
-                const colorDia = coloresPorDia[diaUpper] || zona.color;
-                
-                // Popup con color del día
-                layer.bindPopup(`
-                  <b>ReSimple - ${zona.nombre}</b><br>
-                  <strong>Día:</strong> <span style="color: ${colorDia}; font-weight: bold;">${dia}</span><br>
-                  <strong>Zona:</strong> ${zonaName}
-                `);
-                
-                // Click handler
-                layer.on('click', () => {
-                  showInfo({
-                    name: zona.nombre,
-                    dia: dia,
-                    zona: zonaName,
-                    ...props
-                  });
-                });
-              }
-            });
-            
-            layers[zona.id].addLayer(polygonLayer);
-
-            // Agregar labels para cada feature
-            zona.features.forEach(feature => {
-              const props = feature.properties || {};
-              const dia = (props.Name || '').trim().toUpperCase();
-              
-              // Obtener color específico del día
-              const colorDia = coloresPorDia[dia] || zona.color;
-              
-              // Calcular centroide del polígono
-              if (feature.geometry && feature.geometry.coordinates) {
-                try {
-                  const coords = feature.geometry.coordinates[0][0]; // Primer anillo del multipolígono
-                  if (coords && coords.length > 0) {
-                    // Calcular centro promedio
-                    let latSum = 0, lngSum = 0;
-                    coords.forEach(coord => {
-                      lngSum += coord[0];
-                      latSum += coord[1];
-                    });
-                    const centerLng = lngSum / coords.length;
-                    const centerLat = latSum / coords.length;
-                    
-                    // Crear marker invisible con divIcon para el label
-                    const label = L.marker([centerLat, centerLng], {
-                      icon: L.divIcon({
-                        className: 'resimple-label',
-                        html: `<div style="
-                          background-color: ${colorDia};
-                          color: white;
-                          padding: 3px 8px;
-                          border-radius: 4px;
-                          font-size: 10px;
-                          font-weight: bold;
-                          text-align: center;
-                          white-space: nowrap;
-                          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-                        ">${dia}</div>`,
-                        iconSize: null,
-                        iconAnchor: [0, 0]
-                      }),
-                      interactive: false
-                    });
-                    
-                    layers[zona.id].addLayer(label);
-                  }
-                } catch (e) {
-                  console.warn('Error creando label para feature:', e);
-                }
-              }
-            });
-
-            // Agregar al mapa si el checkbox está marcado
-            const checkbox = document.getElementById(zona.checkbox);
-            if (checkbox && checkbox.checked) {
-              layers[zona.id].addTo(map);
-            }
-          });
-          
-          console.log('✓ Capas ReSimple cargadas:', Object.values(zonas).map(z => `${z.nombre}: ${z.features.length} features`).join(', '));
-        })
-        .catch(err => console.error('Error al cargar ReSimple:', err));
-    };
     cargarReSimple();
 
     setTimeout(() => { try { map.invalidateSize(); } catch (e) {} }, 200);
   }
-
 
   // Wire UI - Ya no necesita DOMContentLoaded porque ya estamos dentro de uno
   createMap();
@@ -1868,6 +1811,35 @@ document.addEventListener('DOMContentLoaded', function() {
         });
       }
 
+      // Special handling for ReSimple layers (independent layers)
+      const resimpleCheckboxes = [
+        'chk-resimple-zona1',
+        'chk-resimple-zona2',
+        'chk-resimple-zona3'
+      ];
+      
+      if (resimpleCheckboxes.includes(checkboxId)) {
+        checkbox.checked = false; // Default unchecked
+        checkbox.addEventListener('change', (ev) => {
+          if (layers[layerName]) {
+            if (ev.target.checked) {
+              if (!map.hasLayer(layers[layerName])) {
+                layers[layerName].addTo(map);
+                console.log(`✓ Capa ${layerName} agregada al mapa`);
+              }
+            } else {
+              if (map.hasLayer(layers[layerName])) {
+                map.removeLayer(layers[layerName]);
+                console.log(`✓ Capa ${layerName} removida del mapa`);
+              }
+            }
+          } else {
+            console.warn(`⚠ Capa ${layerName} no existe en layers`);
+          }
+        });
+        return;
+      }
+
       // Special handling for education layers (independent layers)
       const eduCheckboxes = [
         'chk-edu-centros-extension',
@@ -1880,31 +1852,6 @@ document.addEventListener('DOMContentLoaded', function() {
       ];
       
       if (eduCheckboxes.includes(checkboxId)) {
-        checkbox.checked = false; // Default unchecked
-        checkbox.addEventListener('change', (ev) => {
-          if (layers[layerName]) {
-            if (ev.target.checked) {
-              if (!map.hasLayer(layers[layerName])) {
-                layers[layerName].addTo(map);
-              }
-            } else {
-              if (map.hasLayer(layers[layerName])) {
-                map.removeLayer(layers[layerName]);
-              }
-            }
-          }
-        });
-        return;
-      }
-
-      // Special handling for ReSimple layers (independent layers)
-      const resimpleCheckboxes = [
-        'chk-resimple-zona1',
-        'chk-resimple-zona2',
-        'chk-resimple-zona3'
-      ];
-      
-      if (resimpleCheckboxes.includes(checkboxId)) {
         checkbox.checked = false; // Default unchecked
         checkbox.addEventListener('change', (ev) => {
           if (layers[layerName]) {
