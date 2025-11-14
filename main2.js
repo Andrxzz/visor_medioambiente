@@ -244,7 +244,7 @@ document.addEventListener('DOMContentLoaded', function() {
           features: features
         };
 
-        L.geoJSON(convertedGeoJSON, {
+        layers['comuna'] = L.geoJSON(convertedGeoJSON, {
           style: {
             color: '#e74c3c',
             weight: 3,
@@ -1634,12 +1634,12 @@ document.addEventListener('DOMContentLoaded', function() {
               // Método 2: Buscar por propiedad villaHighlight
               const layersToRemove = [];
               map.eachLayer(function(layer) {
-                // Si tiene la marca de villa highlight
+                // SOLO remover si tiene la marca específica de villa highlight
                 if (layer.options && layer.options.villaHighlight === true) {
                   layersToRemove.push(layer);
                 }
-                // O si es una capa GeoJSON que no es la principal de villas
-                else if (layer instanceof L.GeoJSON && layer !== layers['villas']) {
+                // O si tiene la clase CSS villa-resaltada
+                else if (layer.options && layer.options.className === 'villa-resaltada') {
                   layersToRemove.push(layer);
                 }
               });
